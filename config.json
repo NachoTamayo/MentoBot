@@ -1,13 +1,33 @@
 {
-	"token": "OTMyMzc3NTU0NTQxNzUyMzcw.YeSGQw.P-F1oT7mpliLjcyYa7yxsBxqfSQ",
+	"token": "OTMyMzc3NTU0NTQxNzUyMzcw.YeSGQw.k2czg7oj5J0GGa4gcofJBJKgPY4",
     "clientId" : "932377554541752370",
     "guildId" : "633596367666937856",
     "adminRole" : "932666956958531654",
+    "supportChannelID" : "633596367666937858",
     "botID" :"932377554541752370",
     "prefix" : "/",
-    "host" : "localhost",
+    "host" : "db4free.net",
     "port" : 3306,
-    "user" : "root",
-    "password" : "",
-    "database" : "mysql"
+    "user" : "igtalo",
+    "password" : "elPutoamo1",
+    "database" : "igtalo",
+    "userTable" : "mock_data",
+    "roles" : {
+        "cashBasic" : "932951256526372904",
+        "cashBasicAnuncios" : "933294321262813225",
+        "cashPro" : "932951357122555925",
+        "cashProAnuncios" : "933294166337785868",
+        "cashElite" : "932951399858315285",
+        "cashEliteAnuncios" : "933294263863738389",
+        "spinBasic" : "932951613755252757",
+        "spinBasicAnuncios" : "933294321262813225",
+        "spinPro" : "932952098922975293",
+        "spinProAnuncios" : "933294386731687986",
+        "spinElite" : "932951437200195614",
+        "spinEliteAnuncios" : "933294516033695804",
+        "torneosBasic" : "932951707523117086",
+        "torneosBasicAnuncios" : "933294635760123924",
+        "torneosPro" : "932951791333695520",
+        "torneosProAnuncios" : "933294954674020353"
+    }
 }
