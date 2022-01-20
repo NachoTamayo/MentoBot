@@ -42,7 +42,7 @@ function getRole(id){
 }
 
 function desasignarRoles(member, guild){
-    console.log(member.user.username);
+    console.log('Tiene una suscripción expirada: '+member.user.username);
     if(member.roles.cache.has(roles.cashBasic)){
         member.roles.remove(getRole(roles.cashBasic));
         if(!member.roles.cache.has(roles.cashBasicAnuncios)){
@@ -103,18 +103,32 @@ function desasignarRoles(member, guild){
 
 }
 
+function getFecha(){
+    let date_ob = new Date();
+let date = ("0" + date_ob.getDate()).slice(-2);
+let month = ("0" + (date_ob.getMonth() + 1)).slice(-2);
+let year = date_ob.getFullYear();
+let hours = date_ob.getHours();
+let minutes = date_ob.getMinutes();
+let seconds = date_ob.getSeconds();
+
+console.log(year + "-" + month + "-" + date + " " + hours + ":" + minutes + ":" + seconds);
+
+}
+
 client.once('ready', () => {
 	console.log('Ready!');
-    new CronJob('0 * * * * *', function(){
+    new CronJob('0 8 * * * *', function(){
         client.guilds.cache.forEach(g => {      
             g.roles.fetch();
         });
+        getFecha();
         //Hacemos una query para recuperar todos los usuarios con estado de sub experied en la web
         //Necesitamos los IDs, por lo que sus tags los convertimos en IDs.
         createQuery(`SELECT discord FROM ${userTable} WHERE perfil LIKE '%(expired)%'`, async function(response){
                 var userTag;
                 var arrIDs = new Array();
-                console.log(response)
+                
                 for(var i=0; i<response.length; i++){
                     tagUser = response[i].discord;
                     const list = client.guilds.cache.get(guildId); 
