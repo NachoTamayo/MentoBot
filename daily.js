@@ -118,7 +118,7 @@ console.log(year + "-" + month + "-" + date + " " + hours + ":" + minutes + ":" 
 
 client.once('ready', () => {
 	console.log('Ready!');
-    new CronJob('0 8 * * * *', function(){
+    new CronJob('5 * * * * *', function(){
         client.guilds.cache.forEach(g => {      
             g.roles.fetch();
         });
