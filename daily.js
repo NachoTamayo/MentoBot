@@ -400,7 +400,7 @@ client.on('messageCreate', async (message) => {
 client.once('ready', () => {
 	console.log('Ready!');
     //En orden de asteriscos: Segundos, minutos, horas, dias, meses, años y día de la semana
-    new CronJob('0 */3 * * * *', function(){
+    new CronJob('0 0 */6 * * *', function(){
         client.guilds.cache.forEach(g => {      
             g.roles.fetch();
         });
