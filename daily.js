@@ -43,14 +43,15 @@ function isAdmin(userID){
 }
 
 function quitarRolesAnuncios(guild, member){
-    member.roles.remove(guild.roles.cache.find(role => role.id === roles.cashBasic));
-    member.roles.remove(guild.roles.cache.find(role => role.id === roles.cashPro));
-    member.roles.remove(guild.roles.cache.find(role => role.id === roles.cashElite));
-    member.roles.remove(guild.roles.cache.find(role => role.id === roles.spinBasic));
-    member.roles.remove(guild.roles.cache.find(role => role.id === roles.spinPro));
-    member.roles.remove(guild.roles.cache.find(role => role.id === roles.spinElite));
-    member.roles.remove(guild.roles.cache.find(role => role.id === roles.torneosBasic));
-    member.roles.remove(guild.roles.cache.find(role => role.id === roles.torneosPro));
+   
+    member.roles.remove(guild.roles.cache.find(role => role.id === roles.cashBasicAnuncios));
+    member.roles.remove(guild.roles.cache.find(role => role.id === roles.cashProAnuncios));
+    member.roles.remove(guild.roles.cache.find(role => role.id === roles.cashEliteAnuncios));
+    member.roles.remove(guild.roles.cache.find(role => role.id === roles.spinBasicAnuncios));
+    member.roles.remove(guild.roles.cache.find(role => role.id === roles.spinProAnuncios));
+    member.roles.remove(guild.roles.cache.find(role => role.id === roles.spinEliteAnuncios));
+    member.roles.remove(guild.roles.cache.find(role => role.id === roles.torneosBasicAnuncios));
+    member.roles.remove(guild.roles.cache.find(role => role.id === roles.torneosProAnuncios));
 }
 
 //Este método solo quita roles de suscripción, nada más
@@ -107,9 +108,10 @@ function createQuery(query, callback){
         con.query(query, function(error, rows, fields){
             if(!!error){
                 console.log(error);
+                con.end();
                 return callback('error');
             }else{
-                
+                con.end();
                 return callback(rows);
             }
         })
@@ -206,19 +208,19 @@ function emailFunction(message){
                 //Primero comprobamos si este usuario ya tiene su usuario de Discord en la base de datos
                 createQuery(`SELECT * FROM ${userTable} WHERE discord="${message.author.username}#${message.author.discriminator}"`, function(res){
                     if(res.length > 0){
-                        message.author.send('Tu usuario de Discord ya estaba asociado a un mail en nuestra base de datos.');
+                        message.author.send('Tu usuario de Discord ya estaba asociado a un mail en nuestra base de datos.').catch(console.error);
                     }else{
                         //Si no hay registro para ese usuario, buscamos si ese mail existe en la base de datos
                         createQuery(`SELECT * FROM ${userTable} WHERE user_email="${emailToValidate}"`, function(res){
                             if(res.length == 0){
-                                message.author.send('El email que me has dado no existe en nuestra base de datos. Asegúrate de haberlo escrito bien y vuelve a probar. Recuerda que tiene que ser con el mail que te registraste.');
+                                message.author.send('El email que me has dado no existe en nuestra base de datos. Asegúrate de haberlo escrito bien y vuelve a probar. Recuerda que tiene que ser con el mail que te registraste.').catch(console.error);
                             }else{
                                 //Hacemos el update
                                 createQuery(`UPDATE ${userTable} SET discord="${message.author.username}#${message.author.discriminator}" WHERE user_email="${emailToValidate}"`, function(res){
                                     if(res.changedRows){
-                                        message.author.send(`Se ha asociado el email ${emailToValidate} con tu usuario ${message.author.username}#${message.author.discriminator}.\r\n\r\n Muchas gracias :partying_face:`)
+                                        message.author.send(`Se ha asociado el email ${emailToValidate} con tu usuario ${message.author.username}#${message.author.discriminator}.\r\n\r\n Muchas gracias :partying_face:`).catch(console.error);
                                     }else{
-                                        message.author.send(`Algo en mis sistemas ha fallado :weary:\r\n\r\nSi necesitas ayuda usa el canal #Soporte de nuestro Discord.`);
+                                        message.author.send(`Algo en mis sistemas ha fallado :weary:\r\n\r\nSi necesitas ayuda usa el canal #Soporte de nuestro Discord.`).catch(console.error);
                                     }
                                 });
                             }
@@ -228,7 +230,7 @@ function emailFunction(message){
                 
                 
             }else{
-                message.author.send('Tu email no tiene un formato correcto :confused:\r\n\r\nPero puedes volver a intentarlo :grin:');
+                message.author.send('Tu email no tiene un formato correcto :confused:\r\n\r\nPero puedes volver a intentarlo :grin:').catch(console.error);
             }
 }
 
@@ -248,7 +250,7 @@ client.on('messageCreate', async (message) => {
             mensaje+="**!sub** -> Para actualizar tu rol en Discord por si te acabas de registrar o has cambiado de plan. Necesitas tener el mail y user de Discord verificado.\r\n";
             message.reply(mensaje);
         }else if(message.content.startsWith('!email')){
-            message.author.send('¡Hola! Esto mejor lo hablamos por aquí para mantener la privacidad de tus datos personales :wink:');
+            message.author.send('¡Hola! Esto mejor lo hablamos por aquí para mantener la privacidad de tus datos personales :wink:').catch(console.error);
             
             emailFunction(message);
             message.delete();
@@ -291,7 +293,6 @@ client.on('messageCreate', async (message) => {
                                     quitarRoles(guild, message.member);
                                     quitarRolesAnuncios(guild, message.member);
                                     var role= guild.roles.cache.find(role => role.id === roles.cashBasic);
-                                    console.log(role);
                                     message.member.roles.add(role);
                                     message.reply('Se te ha incluido en el grupo de Cash Basic ¡Felicidades!');
                                 }else{
@@ -379,7 +380,7 @@ client.on('messageCreate', async (message) => {
                             mensaje +="!email [DIRECCION_DE_MAIL]\r\n\r\n\r\n";
                             mensaje +="Tiene que ser con la que estás registrado en la web y asegúrate de que está correctamente escrito, si no te lo volveré a pedir.\r\n\r\n\r\n";
                             mensaje +="Gracias por tu colaboración. Beep. Boop. :robot:";
-                            members.get(key).user.send(mensaje)
+                            members.get(key).user.send(mensaje).catch(console.error);
                         }
                     }
                 });
@@ -399,14 +400,14 @@ client.on('messageCreate', async (message) => {
 client.once('ready', () => {
 	console.log('Ready!');
     //En orden de asteriscos: Segundos, minutos, horas, dias, meses, años y día de la semana
-    new CronJob('0 0 * * * *', function(){
+    new CronJob('0 */3 * * * *', function(){
         client.guilds.cache.forEach(g => {      
             g.roles.fetch();
         });
         getFecha();
         //Hacemos una query para recuperar todos los usuarios con estado de sub experied en la web
         //Necesitamos los IDs, por lo que sus tags los convertimos en IDs.
-        createQuery(`select u.discord from ${userTable} as u, ${membershipTable} as m where u.id=m.user_id and m.status = "expired" and u.discord != null`, async function(response){
+        createQuery(`select u.discord from ${userTable} as u, ${membershipTable} as m where u.id=m.user_id and m.status = "expired" and u.discord is not null`, async function(response){
                 var userTag;
                 var arrIDs = new Array();
                 
