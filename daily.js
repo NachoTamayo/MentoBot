@@ -230,7 +230,7 @@ function emailFunction(message){
                                     if(res.changedRows){
                                         message.author.send(`Se ha asociado el email ${emailToValidate} con tu usuario ${message.author.username}#${message.author.discriminator}.\r\n\r\n Muchas gracias :partying_face:`).catch(console.error);
                                     }else{
-                                        message.author.send(`Algo en mis sistemas ha fallado :weary:\r\n\r\nSi necesitas ayuda usa el canal #Soporte de nuestro Discord.`).catch(console.error);
+                                        message.author.send(`Algo en mis sistemas ha fallado :weary:\r\n\r\nSi necesitas ayuda usa el canal #👋soporte👋 de nuestro Discord.`).catch(console.error);
                                     }
                                 });
                             }
@@ -285,7 +285,7 @@ client.on('messageCreate', async (message) => {
                                     message.member.roles.add(role);
                                     message.reply('Se te ha incluido en el grupo de Cash Élite. ¡Felicidades!');
                                 }else{
-                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Cash Élite. Si es incorrecto deberías contactar con Soporte.');
+                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Cash Élite. Si es incorrecto deberías contactar con Soporte en #👋soporte👋 .');
                                 }
                                 break;
                             case 8:
@@ -295,7 +295,7 @@ client.on('messageCreate', async (message) => {
                                     message.member.roles.add(role);
                                     message.reply('Se te ha incluido en el grupo de Cash Pro. ¡Felicidades!');
                                 }else{
-                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Cash Pro. Si es incorrecto deberías contactar con Soporte.');
+                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Cash Pro. Si es incorrecto deberías contactar con Soporte en #👋soporte👋 .');
                                 }
                                 break;
                             case 7:
@@ -306,7 +306,7 @@ client.on('messageCreate', async (message) => {
                                     message.member.roles.add(role);
                                     message.reply('Se te ha incluido en el grupo de Cash Basic ¡Felicidades!');
                                 }else{
-                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Cash Basic. Si es incorrecto deberías contactar con Soporte.');
+                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Cash Basic. Si es incorrecto deberías contactar con Soporte en #👋soporte👋 .');
                                 }
                                 break;
                             case 3:
@@ -316,7 +316,7 @@ client.on('messageCreate', async (message) => {
                                     message.member.roles.add(role);
                                     message.reply('Se te ha incluido en el grupo de Spin Elite. ¡Felicidades!');
                                 }else{
-                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Spin Elite. Si es incorrecto deberías contactar con Soporte.');
+                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Spin Elite. Si es incorrecto deberías contactar con Soporte en #👋soporte👋 .');
                                 }
                                 break;
                             case 2:
@@ -326,7 +326,7 @@ client.on('messageCreate', async (message) => {
                                     message.member.roles.add(role);
                                     message.reply('Se te ha incluido en el grupo de Spin Pro. ¡Felicidades!');
                                 }else{
-                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Spin Pro. Si es incorrecto deberías contactar con Soporte.');
+                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Spin Pro. Si es incorrecto deberías contactar con Soporte en #👋soporte👋 .');
                                 }
                                 break;
                             case 1:
@@ -336,7 +336,7 @@ client.on('messageCreate', async (message) => {
                                     message.member.roles.add(role);
                                     message.reply('Se te ha incluido en el grupo de Spin Basic. ¡Felicidades!');
                                 }else{
-                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Spin Basic. Si es incorrecto deberías contactar con Soporte.');
+                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Spin Basic. Si es incorrecto deberías contactar con Soporte en #👋soporte👋 .');
                                 }
                                 break;
                             case 4:
@@ -346,7 +346,7 @@ client.on('messageCreate', async (message) => {
                                     message.member.roles.add(role);
                                     message.reply('Se te ha incluido en el grupo de Torneos Basic. ¡Felicidades!');
                                 }else{
-                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Torneos Basic. Si es incorrecto deberías contactar con Soporte.');
+                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Torneos Basic. Si es incorrecto deberías contactar con Soporte en #👋soporte👋 .');
                                 }
                                 break;
                             case 5:
@@ -356,7 +356,7 @@ client.on('messageCreate', async (message) => {
                                     message.member.roles.add(role);
                                     message.reply('Se te ha incluido en el grupo de Torneos Pro. ¡Felicidades!');
                                 }else{
-                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Torneos Pro. Si es incorrecto deberías contactar con Soporte.');
+                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Torneos Pro. Si es incorrecto deberías contactar con Soporte en #👋soporte👋 .');
                                 }
                                 break;
                         }
@@ -365,6 +365,11 @@ client.on('messageCreate', async (message) => {
                     }
                 }
             });
+        }else if(message.content.startsWith('!')){
+            var msj = 'No conozco ese comando, quizás aún no me lo han enseñado. Por el momento, los que me sé son estos:\r\n\r\n';
+            msj+='*!email* para valir tu mail.\r\n';
+            msj+='*!sub* para valir tu suscripción.\r\n';
+            message.reply(msj);
         }
     }else{
         if(message.content.startsWith('!email')){
@@ -399,7 +404,11 @@ client.on('messageCreate', async (message) => {
                 return;
             }
             })
-           
+        }else if(message.content.startsWith('!')){
+            var msj = 'No conozco ese comando, quizás aún no me lo han enseñado. Por el momento, los que me sé son estos:\r\n\r\n';
+            msj+='*!email* para valir tu mail.\r\n';
+            msj+='*!sub* para valir tu suscripción.\r\n';
+            message.reply(msj);
         }else{
             
             return;
