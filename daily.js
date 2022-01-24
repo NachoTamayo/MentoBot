@@ -128,58 +128,68 @@ function getRole(id){
 function desasignarRoles(member, guild){
     console.log('Tiene una suscripción expirada: '+member.user.username);
     if(member.roles.cache.has(roles.cashBasic)){
-        member.roles.remove(getRole(roles.cashBasic));
+        console.log('Tiene rol Cash Basic');
+        member.roles.remove(roles.cashBasic);
         if(!member.roles.cache.has(roles.cashBasicAnuncios)){
-            member.roles.add(getRole(roles.cashBasicAnuncios));
+            console.log('Le ponemos Rol Cash Casic Anuncios');
+            member.roles.add(roles.cashBasicAnuncios);
         }
     }
 
     if(member.roles.cache.has(roles.cashPro)){
-        member.roles.remove(getRole(roles.cashPro));
+        console.log('Tiene rol Cash Pro');
+        member.roles.remove(roles.cashPro);
         if(!member.roles.cache.has(roles.cashProAnuncios)){
-            member.roles.add(getRole(roles.cashProAnuncios));
+           
+            member.roles.add(roles.cashProAnuncios);
         }
     }
 
     if(member.roles.cache.has(roles.cashElite)){
-        member.roles.remove(getRole(roles.cashElite));
+        console.log('Tiene rol Cash Elite');
+        member.roles.remove(roles.cashElite);
         if(!member.roles.cache.has(roles.cashEliteAnuncios)){
-            member.roles.add(getRole(roles.cashEliteAnuncios));
+            member.roles.add(roles.cashEliteAnuncios);
         }
     }
     
     if(member.roles.cache.has(roles.spinBasic)){
-        member.roles.remove(getRole(roles.spinBasic));
+        console.log('Tiene rol Spin Basic');
+        member.roles.remove(roles.spinBasic);
         if(!member.roles.cache.has(roles.spinBasicAnuncios)){
-            member.roles.add(getRole(roles.spinBasicAnuncios));
+            member.roles.add(roles.spinBasicAnuncios);
         }
     }
 
     if(member.roles.cache.has(roles.spinPro)){
-        member.roles.remove(getRole(roles.spinPro));
+        console.log('Tiene rol Spin Pro');
+        member.roles.remove(roles.spinPro);
         if(!member.roles.cache.has(roles.spinProAnuncios)){
-            member.roles.add(getRole(roles.spinProAnuncios));
+            member.roles.add(roles.spinProAnuncios);
         }
     }
 
     if(member.roles.cache.has(roles.spinElite)){
-        member.roles.remove(getRole(roles.spinElite));
+        console.log('Tiene rol Spin Elite');
+        member.roles.remove(roles.spinElite);
         if(!member.roles.cache.has(roles.spinEliteAnuncios)){
-            member.roles.add(getRole(roles.spinEliteAnuncios));
+            member.roles.add(roles.spinEliteAnuncios);
         }
     }
 
     if(member.roles.cache.has(roles.torneosBasic)){
-        member.roles.remove(getRole(roles.torneosBasic));
+        console.log('Tiene rol Torneos Basic');
+        member.roles.remove(roles.torneosBasic);
         if(!member.roles.cache.has(roles.torneosBasicAnuncios)){
-            member.roles.add(getRole(roles.torneosBasicAnuncios));
+            member.roles.add(roles.torneosBasicAnuncios);
         }
     }
 
     if(member.roles.cache.has(roles.torneosPro)){
-        member.roles.remove(getRole(roles.torneosPro));
+        console.log('Tiene rol Torneos Pro');
+        member.roles.remove(roles.torneosPro);
         if(!member.roles.cache.has(roles.torneosProAnuncios)){
-            member.roles.add(getRole(roles.torneosProAnuncios));
+            member.roles.add(roles.torneosProAnuncios);
         }
     }
 
@@ -397,26 +407,37 @@ client.on('messageCreate', async (message) => {
     }    
   });
 
+async function getPlayer(id){
+    let server = client.guilds.cache.get("618457893762760714");
+    let player = await server.members.fetch(id);
+    desasignarRoles(player, server);
+}
+
 client.once('ready', () => {
 	console.log('Ready!');
+    
     //En orden de asteriscos: Segundos, minutos, horas, dias, meses, años y día de la semana
-    new CronJob('0 0 */6 * * *', function(){
+    new CronJob('0 */3 * * * *', function(){
         client.guilds.cache.forEach(g => {      
             g.roles.fetch();
         });
+        
         getFecha();
         //Hacemos una query para recuperar todos los usuarios con estado de sub experied en la web
         //Necesitamos los IDs, por lo que sus tags los convertimos en IDs.
-        createQuery(`select u.discord from ${userTable} as u, ${membershipTable} as m where u.id=m.user_id and m.status = "expired" and u.discord is not null`, async function(response){
+        createQuery(`select u.discord from ${userTable} as u, ${membershipTable} as m where u.id=m.user_id and m.status not like 'active' and u.discord is not null order by u.discord asc`, async function(response){
                 var userTag;
                 var arrIDs = new Array();
                 
                 for(var i=0; i<response.length; i++){
                     tagUser = response[i].discord;
+                   
                     const list = client.guilds.cache.get(guildId); 
                     await list.members.fetch({cache:false}).then(members => {
                         var member = members.find(u => u.user.tag === tagUser);
-                        desasignarRoles(member, list);
+                        
+                        if(member != undefined)
+                            getPlayer(member.user.id);
                     });
                     
                 }     
