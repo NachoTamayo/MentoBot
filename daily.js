@@ -1,10 +1,10 @@
-const { Client, Intents, Permissions } = require('discord.js');
+const { Client, Intents, Permissions, MessageSelectMenu } = require('discord.js');
 const CronJob = require('cron').CronJob;
-const { clientId, guildId, token, user, password, host, database, port, adminRole, supportChannelID, roles, userTable, membershipTable, botID } = require('./config.json');
+const { clientId, guildId, token, user, password, host, database, port, adminRole, permisosChannelID, soporteChannelID, roles, userTable, membershipTable, botID } = require('./config.json');
 const mysql = require('mysql');
 const { RequestManager } = require('@discordjs/rest');
 
-const client = new Client({ intents: ["GUILDS", "GUILD_MESSAGES", "GUILD_MEMBERS", "DIRECT_MESSAGES"], partials: ["CHANNEL"], fetchAllMembers: true });
+const client = new Client({ intents: ["GUILDS", "GUILD_PRESENCES", "GUILD_MESSAGES", "GUILD_MEMBERS", "DIRECT_MESSAGES"], partials: ["CHANNEL"], fetchAllMembers: true });
 
 //FUNCIONES GENERALES
 
@@ -230,7 +230,7 @@ function emailFunction(message){
                                     if(res.changedRows){
                                         message.author.send(`Se ha asociado el email ${emailToValidate} con tu usuario ${message.author.username}#${message.author.discriminator}.\r\n\r\n Muchas gracias :partying_face:`).catch(console.error);
                                     }else{
-                                        message.author.send(`Algo en mis sistemas ha fallado :weary:\r\n\r\nSi necesitas ayuda usa el canal #👋soporte👋 de nuestro Discord.`).catch(console.error);
+                                        message.author.send(`Algo en mis sistemas ha fallado :weary:\r\n\r\nSi necesitas ayuda usa el canal '+message.guild.channels.cache.get(soporteChannelID).toString()+' de nuestro Discord.`).catch(console.error);
                                     }
                                 });
                             }
@@ -247,26 +247,57 @@ function emailFunction(message){
 //FUNCIONES GENERALES
 
 client.on('messageCreate', async (message) => {
+    if(message.author.id == botID)
+        return;
     let guild = client.guilds.cache.get(guildId);
-    //Comprobamos que el mensaje recibido no es un MP
-    if (message.channel.type !== 'DM'){
-        if(message.channel.id !== supportChannelID)
+    
+    if(message.channel.id == soporteChannelID && message.author.id != "524180674786230272" ){
+        if(message.content.startsWith('!email')){
+            message.reply('Eso me lo tienes que escribir por el canal de '+message.guild.channels.cache.get(permisosChannelID).toString()+'');
             return;
-        //Comando !Help que muestra todos los comandos de los que dispone el bot
+        }
+        if(message.content.startsWith('!sub')){
+            message.reply('Eso me lo tienes que escribir por el canal de '+message.guild.channels.cache.get(permisosChannelID).toString()+'');
+            return;
+        }
         if(message.content.startsWith('!help')){
             var mensaje = "¿Necesitas ayuda? Estos son mis comandos:\r\n\r\n";
             mensaje+="**!help** -> Bueno, este creo que ya sabes para que es...\r\n";
             mensaje+="**!email [TU EMAIL AQUI]** -> Para validar tu email y tu user de Discord. Te recomiendo que lo uses mandándome un mensaje privado, por el tema de la privacidad.\r\n";
             mensaje+="**!sub** -> Para actualizar tu rol en Discord por si te acabas de registrar o has cambiado de plan. Necesitas tener el mail y user de Discord verificado.\r\n";
             message.reply(mensaje);
-        }else if(message.content.startsWith('!email')){
+            return;
+        }
+        if(message.content.length > 15)
+         message.reply('Hemos recibido tu mensaje, te pondremos un tick verde cuando esté resuelto o te contactemos. Recuerda que si es por tema de permisos tienes que usar el canal '+message.guild.channels.cache.get(permisosChannelID).toString()+' primero.');
+        return;
+        
+    }
+    //Comprobamos que el mensaje recibido no es un MP
+    if (message.channel.type !== 'DM'){
+        //Easter Egg para Miguel
+        if(message.author.id == '618456228192059420' && message.content == "!"){
+            let canal = message.channel.id;
+            canal.message('De locos');
+            message.delete();
+        }
+        if(message.channel.id !== permisosChannelID)
+            return;
+        //Comando !Help que muestra todos los comandos de los que dispone el bot
+        if(toLowerCase(message.content).startsWith('!help')){
+            var mensaje = "¿Necesitas ayuda? Estos son mis comandos:\r\n\r\n";
+            mensaje+="**!help** -> Bueno, este creo que ya sabes para que es...\r\n";
+            mensaje+="**!email [TU EMAIL AQUI]** -> Para validar tu email y tu user de Discord. Te recomiendo que lo uses mandándome un mensaje privado, por el tema de la privacidad.\r\n";
+            mensaje+="**!sub** -> Para actualizar tu rol en Discord por si te acabas de registrar o has cambiado de plan. Necesitas tener el mail y user de Discord verificado.\r\n";
+            message.reply(mensaje);
+        }else if(toLowerCase(message.content).startsWith('!email')){
             message.author.send('¡Hola! Esto mejor lo hablamos por aquí para mantener la privacidad de tus datos personales :wink:').catch(console.error);
             
             emailFunction(message);
             message.delete();
         }
         //Comando !sub para actualizar tu rol con lo que hay en la web
-        else if(message.content.startsWith('!sub')){
+        else if(toLowerCase(message.content).startsWith('!sub')){
             //Esto es la columna membresía
             createQuery(`SELECT m.object_id, m.status from ${userTable} u, ${membershipTable} m where u.ID = m.user_id and u.discord ="${message.author.username}#${message.author.discriminator}"`, function(res){
                 
@@ -274,7 +305,7 @@ client.on('messageCreate', async (message) => {
                     message.reply('No hay registro de que tu usuario de Discord tenga perfil en la escuela. ¿Quizás es que no lo has validado con tu mail? Usa el comando **!email** para incorporarlo a la web :wink:')
                 }else{
                    
-                    if(res[0].status == 'active'){
+                    if(res[0].status != 'expired'){
                         
                         
                         switch(res[0].object_id){
@@ -283,9 +314,10 @@ client.on('messageCreate', async (message) => {
                                     quitarRoles(guild, message.member);
                                     var role= guild.roles.cache.find(role => role.id === roles.cashElite);
                                     message.member.roles.add(role);
+                                    quitarRolesAnuncios(guild, member);
                                     message.reply('Se te ha incluido en el grupo de Cash Élite. ¡Felicidades!');
                                 }else{
-                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Cash Élite. Si es incorrecto deberías contactar con Soporte en #👋soporte👋 .');
+                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Cash Élite. Si es incorrecto deberías contactar con Soporte en '+message.guild.channels.cache.get(soporteChannelID).toString()+' .');
                                 }
                                 break;
                             case 8:
@@ -293,9 +325,10 @@ client.on('messageCreate', async (message) => {
                                     quitarRoles(guild, message.member);
                                     var role= guild.roles.cache.find(role => role.id === roles.cashPro);
                                     message.member.roles.add(role);
+                                    quitarRolesAnuncios(guild, member);
                                     message.reply('Se te ha incluido en el grupo de Cash Pro. ¡Felicidades!');
                                 }else{
-                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Cash Pro. Si es incorrecto deberías contactar con Soporte en #👋soporte👋 .');
+                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Cash Pro. Si es incorrecto deberías contactar con Soporte en '+message.guild.channels.cache.get(soporteChannelID).toString()+' .');
                                 }
                                 break;
                             case 7:
@@ -304,9 +337,10 @@ client.on('messageCreate', async (message) => {
                                     quitarRolesAnuncios(guild, message.member);
                                     var role= guild.roles.cache.find(role => role.id === roles.cashBasic);
                                     message.member.roles.add(role);
+                                    quitarRolesAnuncios(guild, member);
                                     message.reply('Se te ha incluido en el grupo de Cash Basic ¡Felicidades!');
                                 }else{
-                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Cash Basic. Si es incorrecto deberías contactar con Soporte en #👋soporte👋 .');
+                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Cash Basic. Si es incorrecto deberías contactar con Soporte en '+message.guild.channels.cache.get(soporteChannelID).toString()+' .');
                                 }
                                 break;
                             case 3:
@@ -314,9 +348,10 @@ client.on('messageCreate', async (message) => {
                                     quitarRoles(guild, message.member);
                                     var role= guild.roles.cache.find(role => role.id === roles.spinElite);
                                     message.member.roles.add(role);
+                                    quitarRolesAnuncios(guild, member);
                                     message.reply('Se te ha incluido en el grupo de Spin Elite. ¡Felicidades!');
                                 }else{
-                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Spin Elite. Si es incorrecto deberías contactar con Soporte en #👋soporte👋 .');
+                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Spin Elite. Si es incorrecto deberías contactar con Soporte en '+message.guild.channels.cache.get(soporteChannelID).toString()+' .');
                                 }
                                 break;
                             case 2:
@@ -324,9 +359,10 @@ client.on('messageCreate', async (message) => {
                                     quitarRoles(guild, message.member);
                                     var role= guild.roles.cache.find(role => role.id === roles.spinPro);
                                     message.member.roles.add(role);
+                                    quitarRolesAnuncios(guild, member);
                                     message.reply('Se te ha incluido en el grupo de Spin Pro. ¡Felicidades!');
                                 }else{
-                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Spin Pro. Si es incorrecto deberías contactar con Soporte en #👋soporte👋 .');
+                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Spin Pro. Si es incorrecto deberías contactar con Soporte en '+message.guild.channels.cache.get(soporteChannelID).toString()+' .');
                                 }
                                 break;
                             case 1:
@@ -334,9 +370,10 @@ client.on('messageCreate', async (message) => {
                                     quitarRoles(guild, message.member);
                                     var role= guild.roles.cache.find(role => role.id === roles.spinBasic);
                                     message.member.roles.add(role);
+                                    quitarRolesAnuncios(guild, member);
                                     message.reply('Se te ha incluido en el grupo de Spin Basic. ¡Felicidades!');
                                 }else{
-                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Spin Basic. Si es incorrecto deberías contactar con Soporte en #👋soporte👋 .');
+                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Spin Basic. Si es incorrecto deberías contactar con Soporte en '+message.guild.channels.cache.get(soporteChannelID).toString()+' .');
                                 }
                                 break;
                             case 4:
@@ -344,9 +381,10 @@ client.on('messageCreate', async (message) => {
                                     quitarRoles(guild, message.member);
                                     var role= guild.roles.cache.find(role => role.id === roles.torneosBasic);
                                     message.member.roles.add(role);
+                                    quitarRolesAnuncios(guild, member);
                                     message.reply('Se te ha incluido en el grupo de Torneos Basic. ¡Felicidades!');
                                 }else{
-                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Torneos Basic. Si es incorrecto deberías contactar con Soporte en #👋soporte👋 .');
+                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Torneos Basic. Si es incorrecto deberías contactar con Soporte en '+message.guild.channels.cache.get(soporteChannelID).toString()+' .');
                                 }
                                 break;
                             case 5:
@@ -354,29 +392,45 @@ client.on('messageCreate', async (message) => {
                                     quitarRoles(guild, message.member);
                                     var role= guild.roles.cache.find(role => role.id === roles.torneosPro);
                                     message.member.roles.add(role);
+                                    quitarRolesAnuncios(guild, member);
                                     message.reply('Se te ha incluido en el grupo de Torneos Pro. ¡Felicidades!');
                                 }else{
-                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Torneos Pro. Si es incorrecto deberías contactar con Soporte en #👋soporte👋 .');
+                                    message.reply('Está todo correcto. Sigues perteneciendo al grupo de Torneos Pro. Si es incorrecto deberías contactar con Soporte en '+message.guild.channels.cache.get(soporteChannelID).toString()+' .');
                                 }
                                 break;
                         }
                     }else{
-                        message.reply('Tu suscripción aparentemente no está activa. Si crees que es un error, contacta con soporte.')
+                        var msjjj = 'Tu suscripción aparentemente no está activa. Puede ser debido a la migración de la web. Si crees que es un error, deja el siguiente mensaje en el grupo '+message.guild.channels.cache.get(soporteChannelID).toString()+': \r\n\r\n';
+                        msjjj+= '--> No me reconoce la suscripción como activa + *escribe tu mail aquí*';
+                        message.reply(msjjj);
                     }
                 }
             });
         }else if(message.content.startsWith('!')){
             var msj = 'No conozco ese comando, quizás aún no me lo han enseñado. Por el momento, los que me sé son estos:\r\n\r\n';
-            msj+='*!email* para valir tu mail.\r\n';
-            msj+='*!sub* para valir tu suscripción.\r\n';
+            msj+='**!email** *tu mail aquí* para validar tu mail.\r\n';
+            msj+='**!sub** para validar tu suscripción.\r\n';
+            message.reply(msj);
+        }else if(!message.content.startsWith('!')){
+            var msj = 'Recuerda que en este canal **SOLO** puedes usar estos dos comandos:\r\n\r\n';
+            msj+='**!email** *tu mail aquí* para validar tu mail.\r\n';
+            msj+='**!sub** para validar tu suscripción.\r\n\r\n';
+            msj+='Si tienes cualquier otro problema: deja tu mensaje con tu problema y tu mail en el grupo '+message.guild.channels.cache.get(soporteChannelID).toString()+' .\r\n';
             message.reply(msj);
         }
     }else{
-        if(message.content.startsWith('!email')){
+        if(toLowerCase(message.content).startsWith('!subdoble') && (message.author.id == "524180674786230272" || message.author.id == "269920447439699978")){
+            var mailDoble = message.content.replace('!subdoble ', '');
+            createQuery(`delete from naw_rcp_memberships where status = "expired" and user_id = (SELECT ID FROM naw_users where user_email = "${mailDoble}")`, function(res){
+                if(res != "error")
+                message.reply('Se ha borrado la suscripción expirada');
+
+            });
+        }else if(toLowerCase(message.content).startsWith('!email')){
             
             emailFunction(message);
 
-        }else if(message.content.startsWith('!spam')){
+        }else if(message.content.startsWith('!spam1111111')){
             //Comprobamos que el que usa este comando es un admin
             let guild = client.guilds.cache.get(guildId);
              guild.members.fetch(message.author.id).then(members =>{
@@ -406,8 +460,8 @@ client.on('messageCreate', async (message) => {
             })
         }else if(message.content.startsWith('!')){
             var msj = 'No conozco ese comando, quizás aún no me lo han enseñado. Por el momento, los que me sé son estos:\r\n\r\n';
-            msj+='*!email* para valir tu mail.\r\n';
-            msj+='*!sub* para valir tu suscripción.\r\n';
+            msj+='**!email**   *tu mail aquí*    ->    para validar tu mail.\r\n';
+            msj+='**!sub**   ->   para validar tu suscripción.\r\n';
             message.reply(msj);
         }else{
             
@@ -434,7 +488,7 @@ client.once('ready', () => {
         getFecha();
         //Hacemos una query para recuperar todos los usuarios con estado de sub experied en la web
         //Necesitamos los IDs, por lo que sus tags los convertimos en IDs.
-        createQuery(`select u.discord from ${userTable} as u, ${membershipTable} as m where u.id=m.user_id and m.status not like 'active' and u.discord is not null order by u.discord asc`, async function(response){
+        createQuery(`select u.discord from ${userTable} as u, ${membershipTable} as m where u.id=m.user_id and m.status = 'expired' and u.discord is not null order by u.discord asc`, async function(response){
                 var userTag;
                 var arrIDs = new Array();
                 
@@ -442,7 +496,7 @@ client.once('ready', () => {
                     tagUser = response[i].discord;
                    
                     const list = client.guilds.cache.get(guildId); 
-                    await list.members.fetch({cache:false}).then(members => {
+                    await list.members.fetch().then(members => {
                         var member = members.find(u => u.user.tag === tagUser);
                         
                         if(member != undefined)
