@@ -52,6 +52,7 @@ function quitarRolesAnuncios(guild, member){
     member.roles.remove(guild.roles.cache.find(role => role.id === roles.spinEliteAnuncios));
     member.roles.remove(guild.roles.cache.find(role => role.id === roles.torneosBasicAnuncios));
     member.roles.remove(guild.roles.cache.find(role => role.id === roles.torneosProAnuncios));
+    member.roles.remove(guild.roles.cache.find(role => role.id === roles.torneosEliteAnuncios));
 }
 
 //Este método solo quita roles de suscripción, nada más
@@ -88,6 +89,10 @@ function quitarRoles(guild, member){
     var roleTP= guild.roles.cache.find(role => role.name === roles.torneosPro);
     if(member.roles.cache.some(role => role.name === roles.torneosPro))
         member.roles.remove(roleTP);
+
+    var roleTE= guild.roles.cache.find(role => role.name === roles.torneosElite);
+    if(member.roles.cache.some(role => role.name === roles.torneosElite))
+        member.roles.remove(roleTE);
 }
 
 function createQuery(query, callback){
@@ -126,7 +131,6 @@ function getRole(id){
 }
 
 function desasignarRoles(member, guild, subCaducada){
-    console.log(subCaducada);
     console.log('Tiene una suscripción expirada: '+member.user.username);
     if(member.roles.cache.has(roles.cashBasic) && (subCaducada == '7' || subCaducada == '17' || subCaducada == '16')){
         console.log('Tiene rol Cash Basic');
@@ -194,6 +198,13 @@ function desasignarRoles(member, guild, subCaducada){
         }
     }
 
+    if(member.roles.cache.has(roles.torneosElite) && (subCaducada == '27' || subCaducada == '28' || subCaducada == '29')){
+        console.log('Tiene rol Torneos Pro');
+        member.roles.remove(roles.torneosElite);
+        if(!member.roles.cache.has(roles.torneosEliteAnuncios)){
+            member.roles.add(roles.torneosEliteAnuncios);
+        }
+    }
 
 
 }
@@ -221,7 +232,7 @@ function emailFunction(message){
             if(isEmailValid(emailToValidate)){
                 
                 //Primero comprobamos si este usuario ya tiene su usuario de Discord en la base de datos
-                createQuery(`SELECT * FROM ${userTable} WHERE discord="${message.author.username}#${message.author.discriminator}"`, function(res){
+                createQuery(`SELECT * FROM ${userTable} WHERE discord="${message.author.id}"`, function(res){
                     if(res.length > 0){
                         message.author.send('Tu usuario de Discord ya estaba asociado a un mail en nuestra base de datos.').catch(console.error);
                     }else{
@@ -231,9 +242,9 @@ function emailFunction(message){
                                 message.author.send('El email que me has dado no existe en nuestra base de datos. Asegúrate de haberlo escrito bien y vuelve a probar. Recuerda que tiene que ser con el mail que te registraste.').catch(console.error);
                             }else{
                                 //Hacemos el update
-                                createQuery(`UPDATE ${userTable} SET discord="${message.author.username}#${message.author.discriminator}" WHERE user_email="${emailToValidate}"`, function(res){
+                                createQuery(`UPDATE ${userTable} SET discord="${message.author.id}" WHERE user_email="${emailToValidate}"`, function(res){
                                     if(res.changedRows){
-                                        message.author.send(`Se ha asociado el email ${emailToValidate} con tu usuario ${message.author.username}#${message.author.discriminator}.\r\n\r\n Muchas gracias :partying_face:`).catch(console.error);
+                                        message.author.send(`Se ha asociado el email ${emailToValidate} con tu usuario ${message.author.id}.\r\n\r\n Muchas gracias :partying_face:`).catch(console.error);
                                     }else{
                                         message.author.send(`Algo en mis sistemas ha fallado :weary:\r\n\r\nSi necesitas ayuda usa el canal '+message.guild.channels.cache.get(soporteChannelID).toString()+' de nuestro Discord.`).catch(console.error);
                                     }
@@ -251,10 +262,43 @@ function emailFunction(message){
 
 //FUNCIONES GENERALES
 
+
+
 client.on('messageCreate', async (message) => {
     if(message.author.id == botID)
         return;
     let guild = client.guilds.cache.get(guildId);
+
+    // Verificar si el mensaje se envió en el canal deseado
+    if (message.channel.id === "1109017030813810778") {
+       
+        // Verificar si el autor del mensaje tiene el rol de administrador
+        if (message.member.roles.cache.has(adminRole)) {
+          // El usuario tiene el rol de administrador, permitir cualquier tipo de mensaje
+          return;
+        } else {
+          // El usuario no tiene el rol de administrador, solo permitir mensajes con imágenes adjuntas
+          if (message.attachments.size === 0) {
+            // El mensaje no contiene imágenes adjuntas ni contenido de texto
+            message.delete();
+          }
+        }
+    }
+
+    // Verificar si el mensaje se envió en el canal deseado
+  if (message.channel.id === "1109016862999711774") {
+    // Verificar si el autor del mensaje tiene el rol de administrador
+    if (message.member.roles.cache.has(adminRole)) {
+      // El usuario tiene el rol de administrador, permitir cualquier tipo de mensaje
+      return;
+    } else {
+      // El usuario no tiene el rol de administrador, solo permitir mensajes con enlaces
+      if (!containsLink(message.content)) {
+        // El mensaje no contiene un enlace
+        message.delete();
+      }
+    }
+  }
     
     if(message.channel.id == soporteChannelID && message.author.id != "524180674786230272" ){
         if(message.content.startsWith('!email')){
@@ -274,9 +318,13 @@ client.on('messageCreate', async (message) => {
             return;
         }
         if(message.content.length > 15)
-         message.reply('Hemos recibido tu mensaje, cuando tengas un tick verde ElmoKof te contactará por mensaje privado, revisa tu bandeja de entrada. Acuérdate de activar la recepción de mensajes privados en Discord.\r\nRecuerda que si es por tema de permisos tienes que usar el canal '+message.guild.channels.cache.get(permisosChannelID).toString()+' primero.');
+         message.reply('Hemos recibido tu mensaje, cuando tengas un tick verde ✅ ElmoKof te contactará por mensaje privado, **revisa tu bandeja de entrada**. Acuérdate de **activar la recepción de mensajes privados** en Discord.\r\n\r\nRecuerda que si es por tema de **permisos** tienes que usar el canal '+message.guild.channels.cache.get(permisosChannelID).toString()+' primero.\r\n\r\n🤖  Si pasan 48h sin respuesta no dudes en volver a poner tu mensaje con la duda en el mismo.\r\n\r\n🛌 Recuerda que todos descansamos los fines de semana y puede tardar un poco más.');
         return;
         
+    }
+ 
+    if(message.channel.id == "1104058780645335171" && message.content != "Hola" && message.content != "Buenas" && message.author.id != "932377554541752370"){
+        message.reply('Hola! Has solicitado información sobre los deals, revisa tu sección de mensajes privados y mira bien que tengas "solicitudes pendientes" y abierta recepción de los mismos.\r\n\r\nkmayor99#8060 te contactará por esa vía, CONFIRMA su nombre de discord para evitar problemas (su número 8060) 😄\r\n\r\nPuedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sobre los deals por si quieres directamente elegir uno.');
     }
     //Comprobamos que el mensaje recibido no es un MP
     if (message.channel.type !== 'DM'){
@@ -304,10 +352,10 @@ client.on('messageCreate', async (message) => {
         //Comando !sub para actualizar tu rol con lo que hay en la web
         else if(toLowerCase(message.content.toString()).startsWith('!sub')){
             //Esto es la columna membresía
-            createQuery(`SELECT m.object_id, m.status from ${userTable} u, ${membershipTable} m where u.ID = m.user_id and u.discord ="${message.author.username}#${message.author.discriminator}"`, function(res){
+            createQuery(`SELECT m.object_id, m.status from ${userTable} u, ${membershipTable} m where u.ID = m.user_id and u.discord ="${message.author.id}"`, function(res){
                 
                 if(res.length == 0){
-                    message.reply('No hay registro de que tu usuario de Discord tenga perfil en la escuela. ¿Quizás es que no lo has validado con tu mail? Usa el comando **!email** para incorporarlo a la web :wink:')
+                    message.reply('No hay registro de que tu usuario de Discord tenga perfil en la escuela. ¿Quizás es que no lo has validado con tu mail? Usa el comando **!email** (+ tu email aquí sin paréntesis ni espacio directamente) para incorporarlo a la web :wink:')
                 }else{
                     var subActiva = false;
                     quitarRoles(guild, message.member);
@@ -319,7 +367,7 @@ client.on('messageCreate', async (message) => {
                         subActiva = true;
                         
                         switch(res[i].object_id){
-                            case 9 : case 20 : case 21:
+                            case 9 : case 20 : case 21: case 48: case 49: case 50:
                                 if(!message.member.roles.cache.some(role => role.name === roles.cashElite)){
                                     
                                     var role= guild.roles.cache.find(role => role.id === roles.cashElite);
@@ -330,7 +378,7 @@ client.on('messageCreate', async (message) => {
                                     message.reply('Está todo correcto. Sigues perteneciendo al grupo de Cash Élite. Si es incorrecto deberías contactar con Soporte en '+message.guild.channels.cache.get(soporteChannelID).toString()+' .');
                                 }
                                 break;
-                            case 8 : case 18 : case 19:
+                            case 8 : case 18 : case 19: case 45: case 46: case 47:
                                 if(!message.member.roles.cache.some(role => role.name === roles.cashPro)){
                                     //quitarRoles(guild, message.member);
                                     var role= guild.roles.cache.find(role => role.id === roles.cashPro);
@@ -341,7 +389,7 @@ client.on('messageCreate', async (message) => {
                                     message.reply('Está todo correcto. Sigues perteneciendo al grupo de Cash Pro. Si es incorrecto deberías contactar con Soporte en '+message.guild.channels.cache.get(soporteChannelID).toString()+' .');
                                 }
                                 break;
-                            case 7 : case 17 : case 16:
+                            case 7 : case 17 : case 16: case 42: case 43: case 44:
                                 if(!message.member.roles.cache.some(role => role.name === roles.cashBasic)){
                                     //quitarRoles(guild, message.member);
                                     //quitarRolesAnuncios(guild, message.member);
@@ -353,7 +401,7 @@ client.on('messageCreate', async (message) => {
                                     message.reply('Está todo correcto. Sigues perteneciendo al grupo de Cash Basic. Si es incorrecto deberías contactar con Soporte en '+message.guild.channels.cache.get(soporteChannelID).toString()+' .');
                                 }
                                 break;
-                            case 3 : case 14 : case 15:
+                            case 3 : case 14 : case 15: case 39: case 40: case 41:
                                 if(!message.member.roles.cache.some(role => role.name === roles.spinElite)){
                                     //quitarRoles(guild, message.member);
                                     var role= guild.roles.cache.find(role => role.id === roles.spinElite);
@@ -364,7 +412,7 @@ client.on('messageCreate', async (message) => {
                                     message.reply('Está todo correcto. Sigues perteneciendo al grupo de Spin Elite. Si es incorrecto deberías contactar con Soporte en '+message.guild.channels.cache.get(soporteChannelID).toString()+' .');
                                 }
                                 break;
-                            case 2 : case 13 : case 12:
+                            case 2 : case 13 : case 12: case 36: case 37: case 38:
                                 if(!message.member.roles.cache.some(role => role.name === roles.spinPro)){
                                     //quitarRoles(guild, message.member);
                                     var role= guild.roles.cache.find(role => role.id === roles.spinPro);
@@ -375,7 +423,7 @@ client.on('messageCreate', async (message) => {
                                     message.reply('Está todo correcto. Sigues perteneciendo al grupo de Spin Pro. Si es incorrecto deberías contactar con Soporte en '+message.guild.channels.cache.get(soporteChannelID).toString()+' .');
                                 }
                                 break;
-                            case 1 : case 10 : case 11:
+                            case 1 : case 10 : case 11: case 33: case 34: case 35:
                                 if(!message.member.roles.cache.some(role => role.name === roles.spinBasic)){
                                     //quitarRoles(guild, message.member);
                                     var role= guild.roles.cache.find(role => role.id === roles.spinBasic);
@@ -386,7 +434,7 @@ client.on('messageCreate', async (message) => {
                                     message.reply('Está todo correcto. Sigues perteneciendo al grupo de Spin Basic. Si es incorrecto deberías contactar con Soporte en '+message.guild.channels.cache.get(soporteChannelID).toString()+' .');
                                 }
                                 break;
-                            case 4 : case 22 : case 23:
+                            case 4 : case 22 : case 23: case 51: case 52: case 53: case 54: 
                                 if(!message.member.roles.cache.some(role => role.name === roles.torneosBasic)){
                                     //quitarRoles(guild, message.member);
                                     var role= guild.roles.cache.find(role => role.id === roles.torneosBasic);
@@ -397,7 +445,7 @@ client.on('messageCreate', async (message) => {
                                     message.reply('Está todo correcto. Sigues perteneciendo al grupo de Torneos Basic. Si es incorrecto deberías contactar con Soporte en '+message.guild.channels.cache.get(soporteChannelID).toString()+' .');
                                 }
                                 break;
-                            case 5 : case 24 : case 25:
+                            case 5 : case 24 : case 25: case 55: case 56: case 57:
                                 if(!message.member.roles.cache.some(role => role.name === roles.torneosPro)){
                                     //quitarRoles(guild, message.member);
                                     var role= guild.roles.cache.find(role => role.id === roles.torneosPro);
@@ -408,6 +456,17 @@ client.on('messageCreate', async (message) => {
                                     message.reply('Está todo correcto. Sigues perteneciendo al grupo de Torneos Pro. Si es incorrecto deberías contactar con Soporte en '+message.guild.channels.cache.get(soporteChannelID).toString()+' .');
                                 }
                                 break;
+                                case 27 : case 28 : case 29: case 31: case 32: case 30:
+                                    if(!message.member.roles.cache.some(role => role.name === roles.torneosElite)){
+                                        //quitarRoles(guild, message.member);
+                                        var role= guild.roles.cache.find(role => role.id === roles.torneosElite);
+                                        message.member.roles.add(role);
+                                        //quitarRolesAnuncios(guild, message.member);
+                                        message.reply('Se te ha incluido en el grupo de Torneos Élite. ¡Felicidades!');
+                                    }else{
+                                        message.reply('Está todo correcto. Sigues perteneciendo al grupo de Torneos Élite. Si es incorrecto deberías contactar con Soporte en '+message.guild.channels.cache.get(soporteChannelID).toString()+' .');
+                                    }
+                                    break;
                         }
                     }
                 }
@@ -483,6 +542,12 @@ client.on('messageCreate', async (message) => {
     }    
   });
 
+  function containsLink(content) {
+    // Expresión regular para verificar si el contenido contiene un enlace
+    const linkRegex = /(https?:\/\/[^\s]+)/;
+    return linkRegex.test(content);
+  }
+
 async function getPlayer(id, subCaducada){
     let server = client.guilds.cache.get("618457893762760714");
     let player = await server.members.fetch(id);
@@ -496,7 +561,7 @@ client.once('ready', () => {
 
     
     //En orden de asteriscos: Segundos, minutos, horas, dias, meses, años y día de la semana
-    new CronJob('0 0 * * * *', function(){
+    new CronJob('0 0 * * *', function(){
         client.guilds.cache.forEach(g => {      
             g.roles.fetch();
         });
@@ -506,21 +571,24 @@ client.once('ready', () => {
         //Hacemos una query para recuperar todos los usuarios con estado de sub experied en la web
         //Necesitamos los IDs, por lo que sus tags los convertimos en IDs.
        createQuery(`select u.discord, m.object_id from ${userTable} as u, ${membershipTable} as m where u.id=m.user_id and m.status = 'expired' and u.discord is not null order by u.discord asc`, async function(response){
-           
+                
                 var userTag;
                 var arrIDs = new Array();
                 var subCaducada;
                 
                 for(var i=0; i<response.length; i++){
+                    
                     tagUser = response[i].discord;
+                    
                     subCaducada = response[i].object_id;
                    
                     const list = client.guilds.cache.get(guildId); 
                     await list.members.fetch().then(members => {
-                        var member = members.find(u => u.user.tag === tagUser);
-                        
+                        let member = members.find(u => u.user.id === tagUser);
+                        if(member == undefined)
+                            member = members.find(u => u.user.username+'#'+u.user.discriminator === tagUser);
                         if(member != undefined)
-                            getPlayer(member.user.id, subCaducada);
+                        getPlayer(member.user.id, subCaducada);
                     });
                     
                 }     

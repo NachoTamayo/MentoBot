@@ -51,13 +51,13 @@ function init(){
     con.connect(function(err){
         if(err) throw err; 
         console.log('Connected!');
-
+        
         list.members.fetch({cache:false}).then(async members => {
         
             for (let [key, value] of members) {
                 await sleep(100);
                 if(members.get(key).user.id != botID){
-                    console.log(`UPDATE ${userTable} SET discord="${members.get(key).user.username}#${members.get(key).user.discriminator}" WHERE user_login="${members.get(key).user.username}"`);
+                    console.log(`UPDATE ${userTable} SET discord="${members.get(key).user.id}" WHERE discord="${members.get(key).user.username}#${members.get(key).user.discriminator}"`);
                     con.query(`UPDATE ${userTable} SET discord="${members.get(key).user.username}#${members.get(key).user.discriminator}" WHERE user_login="${members.get(key).user.username}"`, function(error, rows, fields){
                         
                     })

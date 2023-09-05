@@ -5,6 +5,7 @@
     "adminRole" : "653271745582596096",
     "permisosChannelID" : "935193136664309851",
     "soporteChannelID" : "916239208832729128",
+    "canalIDImagenes" : "1109017030813810778",
     "botID" :"932377554541752370",
     "prefix" : "/",
     "host" : "35.214.187.140",
@@ -30,6 +31,8 @@
         "torneosBasic" : "825664164512923659",
         "torneosBasicAnuncios" : "815559044022534144",
         "torneosPro" : "825664166945620039",
-        "torneosProAnuncios" : "815559130407239690"
+        "torneosProAnuncios" : "815559130407239690",
+        "torneosElite" : "1064895184992743424",
+        "torneosEliteAnuncios" : "1065916498276786237"
     }
 }
