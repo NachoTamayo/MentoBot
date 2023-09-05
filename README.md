@@ -25,6 +25,46 @@ Bot also needs a MySQL database to connect
 Just execute `npm install` on the root dir to install all dependencies
 Bot has two applications with different tasks. For any of those you can easily run with 'npm start daily'
 
+You need to configure this Config.json file:
+
+```json
+{
+    "token": "",
+    "clientId": "",
+    "guildId": "",
+    "adminRole": "",
+    "permisosChannelID": "",
+    "soporteChannelID": "",
+    "botID": "",
+    "prefix": "",
+    "host": "",
+    "port": 0,
+    "user": "",
+    "password": "",
+    "database": "",
+    "userTable": "",
+    "membershipTable": "",
+    "roles": {
+        "cashBasic": "",
+        "cashBasicAnuncios": "",
+        "cashPro": "",
+        "cashProAnuncios": "",
+        "cashElite": "",
+        "cashEliteAnuncios": "",
+        "spinBasic": "",
+        "spinBasicAnuncios": "",
+        "spinPro": "",
+        "spinProAnuncios": "",
+        "spinElite": "",
+        "spinEliteAnuncios": "",
+        "torneosBasic": "",
+        "torneosBasicAnuncios": "",
+        "torneosPro": "",
+        "torneosProAnuncios": ""
+    }
+}
+```
+
 #### Deployment
 
 This project can be easily deployed to [Vultr](https://www.vultr.com/docs/cloning-a-virtual-server-with-vultr/). Simply connect your Vultr account to your GitHub repository, and Vercel will automatically build and deploy your application with each new push to the main branch.
