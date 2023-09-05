@@ -67,7 +67,7 @@ You need to configure this Config.json file:
 
 #### Deployment
 
-This project can be easily deployed to [Vultr](https://www.vultr.com/docs/cloning-a-virtual-server-with-vultr/). Simply connect your Vultr account to your GitHub repository, and Vercel will automatically build and deploy your application with each new push to the main branch.
+This project can be easily deployed to [Vultr](https://www.vultr.com/docs/cloning-a-virtual-server-with-vultr/). Simply connect your Vultr account to your GitHub repository, and Vultr will automatically build and deploy your application with each new push to the main branch.
 
 Alternatively, you can use the Vultr CLI to deploy your application straight from your local machine.
 
