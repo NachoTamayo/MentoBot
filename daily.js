@@ -77,23 +77,31 @@ function isEmailValid(email) {
 }
 
 function quitarRolesAnuncios(guild, member) {
+
   for (roleId in roles) {
+
     const role = guild.roles.cache.find((role) => role.id === roleId);
     if (role) {
       member.roles.remove(role);
     }
+
   }
+
 }
 
 //Este método solo quita roles de suscripción, nada más
 function quitarRoles(guild, member) {
-  console.log(roles);
+
+  
   for (roleName in roles) {
+
     const role = guild.roles.cache.find((role) => role.name === roleName);
     if (role && member.roles.cache.some((memberRole) => memberRole.name === roleName)) {
       member.roles.remove(role);
     }
+
   }
+
 }
 
 function createQuery(query, callback) {
@@ -130,6 +138,7 @@ function getKeyByValue(object, value) {
     }
   }
   return null; // Retorna null si no se encuentra el valor en el objeto
+
 }
 
 function desasignarRoles(member, guild, subCaducada) {
@@ -239,6 +248,7 @@ function transformarString(inputString) {
   return result;
 }
 
+
 client.on("messageCreate", async (message) => {
   if (message.author.id == botID) return;
   let guild = client.guilds.cache.get(guildId);
@@ -265,6 +275,7 @@ client.on("messageCreate", async (message) => {
       }
       if (message.content.length > 15) {
         message.reply(
+
           `Hemos recibido tu mensaje, cuando tengas un tick verde ✅ ElmoKof te contactará por mensaje privado, revisa tu bandeja de entrada. Acuérdate de activar la recepción de mensajes privados en Discord.\r\n\r\nRecuerda que si es por tema de permisos tienes que usar el canal ${message.guild.channels.cache
             .get(permisosChannelID)
             .toString()} primero.
@@ -272,10 +283,12 @@ client.on("messageCreate", async (message) => {
 🤖  Si pasan 48h sin respuesta no dudes en volver a poner tu mensaje con la duda en el mismo.\r\n
 
 🛌 Recuerda que todos descansamos los fines de semana y puede tardar un poco más.`
+
         );
         return;
       }
     }
+
   }
   if (message.channel.type !== "DM") {
     if (message.author.id == "618456228192059420" && message.content == "!") {
@@ -470,5 +483,6 @@ client.once("ready", () => {
     "Europe/Madrid"
   );
 });
+
 
 client.login(token);
