@@ -77,31 +77,22 @@ function isEmailValid(email) {
 }
 
 function quitarRolesAnuncios(guild, member) {
-
   for (roleId in roles) {
-
     const role = guild.roles.cache.find((role) => role.id === roleId);
     if (role) {
       member.roles.remove(role);
     }
-
   }
-
 }
 
 //Este método solo quita roles de suscripción, nada más
 function quitarRoles(guild, member) {
-
-  
   for (roleName in roles) {
-
     const role = guild.roles.cache.find((role) => role.name === roleName);
     if (role && member.roles.cache.some((memberRole) => memberRole.name === roleName)) {
       member.roles.remove(role);
     }
-
   }
-
 }
 
 function createQuery(query, callback) {
@@ -138,7 +129,6 @@ function getKeyByValue(object, value) {
     }
   }
   return null; // Retorna null si no se encuentra el valor en el objeto
-
 }
 
 function desasignarRoles(member, guild, subCaducada) {
@@ -248,7 +238,6 @@ function transformarString(inputString) {
   return result;
 }
 
-
 client.on("messageCreate", async (message) => {
   if (message.author.id == botID) return;
   let guild = client.guilds.cache.get(guildId);
@@ -275,7 +264,6 @@ client.on("messageCreate", async (message) => {
       }
       if (message.content.length > 15) {
         message.reply(
-
           `Hemos recibido tu mensaje, cuando tengas un tick verde ✅ ElmoKof te contactará por mensaje privado, revisa tu bandeja de entrada. Acuérdate de activar la recepción de mensajes privados en Discord.\r\n\r\nRecuerda que si es por tema de permisos tienes que usar el canal ${message.guild.channels.cache
             .get(permisosChannelID)
             .toString()} primero.
@@ -283,12 +271,20 @@ client.on("messageCreate", async (message) => {
 🤖  Si pasan 48h sin respuesta no dudes en volver a poner tu mensaje con la duda en el mismo.\r\n
 
 🛌 Recuerda que todos descansamos los fines de semana y puede tardar un poco más.`
-
         );
         return;
       }
     }
+  } else if (message.channel.id == "1104058780645335171") {
+    if (message.author.id != "524180674786230272") {
+      message.reply(
+        `Hola! Has solicitado información sobre los deals, revisa tu sección de mensajes privados y mira bien que tengas "solicitudes pendientes" y abierta recepción de los mismos.
 
+kmayor99 te contactará por esa vía, CONFIRMA su nombre de discord para evitar problemas (kmayor99, tal cual, tiene que se exactamente así) 😄
+
+Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sobre los deals por si quieres directamente elegir uno.`
+      );
+    }
   }
   if (message.channel.type !== "DM") {
     if (message.author.id == "618456228192059420" && message.content == "!") {
@@ -457,7 +453,7 @@ client.once("ready", () => {
       //Hacemos una query para recuperar todos los usuarios con estado de sub experied en la web
       //Necesitamos los IDs, por lo que sus tags los convertimos en IDs.
       createQuery(
-        `select u.discord, m.object_id from ${userTable} as u, ${membershipTable} as m where u.id=m.user_id and m.status in ('expired', 'cancelled') and u.discord is not null order by u.discord asc`,
+        `select u.discord, m.object_id from ${userTable} as u, ${membershipTable} as m where u.id=m.user_id and m.status in ('expired') and u.discord is not null order by u.discord asc`,
         async function (response) {
           let subCaducada;
 
@@ -483,6 +479,5 @@ client.once("ready", () => {
     "Europe/Madrid"
   );
 });
-
 
 client.login(token);
