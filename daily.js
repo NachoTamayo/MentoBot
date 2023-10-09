@@ -321,7 +321,7 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
               quitarRoles(guild, message.member);
               quitarRolesAnuncios(guild, message.member);
               for (var i = 0; i < res.length; i++) {
-                if (res[i].status == "active") {
+                if (res[i].status == "active" && res[i].status == "cancelled") {
                   subActiva = true;
                   const object_id = res[i].object_id;
 
