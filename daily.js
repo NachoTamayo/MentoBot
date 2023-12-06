@@ -476,6 +476,7 @@ client.once("ready", () => {
               }
               if (member != undefined) getPlayer(member.user.id, subCaducada);
             });
+            console.log("Usuario " + tagUser + " procesado");
           }
         }
       );
