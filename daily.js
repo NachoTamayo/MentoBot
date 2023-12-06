@@ -110,7 +110,7 @@ function createQuery(query, callback) {
 
     console.log(query);
     con.query(query, function (error, rows, fields) {
-      if (!!error) {
+      if (error) {
         console.log(error);
         con.end();
         return callback("error");
@@ -149,6 +149,12 @@ function desasignarRoles(member, guild, subCaducada) {
       console.log(`El usuario ${member.user.username} tiene rol ${role}`);
       member.roles.remove(role);
 
+      createQuery(
+        `UPDATE ${membershipTable} SET checked = 1 where status like 'expired' and user_id = (SELECT user_id from ${userTable} where discord ="${member.user.id}")`,
+        () => {
+          console.log("Usuario actualizado en tabla membership");
+        }
+      );
       const anunciosRole = roles[getKeyByValue(roles, role) + "Anuncios"];
       if (!member.roles.cache.has(anunciosRole) && member.roles.cache.size == 0) {
         console.log(`Le ponemos Rol ${anunciosRole}`);
@@ -454,13 +460,12 @@ client.once("ready", () => {
       //Hacemos una query para recuperar todos los usuarios con estado de sub experied en la web
       //Necesitamos los IDs, por lo que sus tags los convertimos en IDs.
       createQuery(
-        `select u.discord, m.object_id from ${userTable} as u, ${membershipTable} as m where u.id=m.user_id and m.status in ('expired') and u.discord is not null order by u.discord asc`,
+        `select u.discord, m.object_id from ${userTable} as u, ${membershipTable} as m where u.id=m.user_id and m.status in ('expired') and m.checked <> 1 and u.discord is not null order by u.discord asc`,
         async function (response) {
           let subCaducada;
 
           for (let i = 0; i < response.length; i++) {
-            console.log;
-            tagUser = response[i].discord;
+            const tagUser = response[i].discord;
             subCaducada = response[i].object_id;
 
             const list = client.guilds.cache.get(guildId);
