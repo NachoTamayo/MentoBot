@@ -450,7 +450,7 @@ client.once("ready", () => {
 
   //En orden de asteriscos: Segundos, minutos, horas, dias, meses, años y día de la semana
   new CronJob(
-    "0 0 * * * *",
+    "0 2 * * *",
     function () {
       client.guilds.cache.forEach((g) => {
         g.roles.fetch();
