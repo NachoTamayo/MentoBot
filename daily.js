@@ -153,13 +153,14 @@ function desasignarRoles(member, guild, subCaducada) {
         `UPDATE ${membershipTable} SET checked = 1 where status like 'expired' and user_id = (SELECT user_id from ${userTable} where discord ="${member.user.id}")`,
         () => {
           console.log("Usuario actualizado en tabla membership");
+          const anunciosRole = roles[getKeyByValue(roles, role) + "Anuncios"];
+          console.log(`El usuario ${member.user.username} tiene rol ${anunciosRole}`);
+          if (!member.roles.cache.has(anunciosRole)) {
+            console.log(`Le ponemos Rol ${anunciosRole}`);
+            member.roles.add(anunciosRole);
+          }
         }
       );
-      const anunciosRole = roles[getKeyByValue(roles, role) + "Anuncios"];
-      if (!member.roles.cache.has(anunciosRole) && member.roles.cache.size == 0) {
-        console.log(`Le ponemos Rol ${anunciosRole}`);
-        member.roles.add(anunciosRole);
-      }
     }
   }
 }
