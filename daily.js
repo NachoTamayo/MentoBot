@@ -460,7 +460,7 @@ client.once("ready", () => {
       //Hacemos una query para recuperar todos los usuarios con estado de sub experied en la web
       //Necesitamos los IDs, por lo que sus tags los convertimos en IDs.
       createQuery(
-        `select u.discord, m.object_id from ${userTable} as u, ${membershipTable} as m where u.id=m.user_id and m.status in ('expired') and m.checked <> 1 and u.discord is not null order by u.discord asc`,
+        `select u.discord, m.object_id from ${userTable} as u, ${membershipTable} as m where u.id=m.user_id and m.status in ('expired') and m.checked is null and u.discord is not null order by u.discord asc`,
         async function (response) {
           let subCaducada;
 
