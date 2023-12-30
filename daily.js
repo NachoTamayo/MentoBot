@@ -352,6 +352,10 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
                           message.guild.channels.cache.get(soporteChannelID).toString()
                       );
                     }
+                  } else {
+                    message.reply(
+                      "Con la suscripción gratuita no puedes tener acceso a los grupos de Discord. Te animo a que te suscribas a Basic/Pro/Élite para descubrir la de cosas que hacemos en MentoPoker :)."
+                    );
                   }
                 }
               }
