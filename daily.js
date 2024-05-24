@@ -30,6 +30,8 @@ const roleMappings = {
   torneosBasic: [4, 22, 23, 51, 52, 53, 54],
   torneosPro: [5, 24, 25, 55, 56, 57],
   torneosElite: [27, 28, 29, 30, 31, 32],
+  pLOPro: [61, 62, 63],
+  pLOElite: [58, 59, 60],
 };
 
 for (const roleName in roleMappings) {
@@ -142,9 +144,12 @@ function desasignarRoles(member, guild, subCaducada) {
     [roles.torneosBasic]: [4, 22, 23, 51, 52, 53, 54],
     [roles.torneosPro]: [5, 24, 25, 55, 56, 57],
     [roles.torneosElite]: [27, 28, 29, 30, 31, 32],
+    [roles.pLOPro]: [61, 62, 63],
+    [roles.pLOElite]: [58, 59, 60],
   };
 
   for (const [role, conditions] of Object.entries(rolesConditions)) {
+    console.log(conditions);
     if (member.roles.cache.has(role) && conditions.includes(subCaducada)) {
       console.log(`El usuario ${member.user.username} tiene rol ${role}`);
       member.roles.remove(role);
@@ -452,7 +457,6 @@ async function getPlayer(id, subCaducada) {
 client.once("ready", () => {
   console.log("Ready!");
   const list = client.guilds.cache.get(guildId);
-
   //En orden de asteriscos: Segundos, minutos, horas, dias, meses, años y día de la semana
   new CronJob(
     "0 2 * * *",
@@ -476,6 +480,7 @@ client.once("ready", () => {
             const list = client.guilds.cache.get(guildId);
             await list.members.fetch().then((members) => {
               let member = members.find((u) => u.user.id === tagUser);
+
               if (member === undefined) {
                 member = members.find((u) => u.user.username + "#" + u.user.discriminator === tagUser);
               }
