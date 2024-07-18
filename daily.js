@@ -32,6 +32,9 @@ const roleMappings = {
   torneosElite: [27, 28, 29, 30, 31, 32],
   pLOPro: [61, 62, 63],
   pLOElite: [58, 59, 60],
+  totalBasic: [69, 70, 71],
+  totalPro: [67, 68, 72],
+  totalElite: [64, 65, 66],
 };
 
 for (const roleName in roleMappings) {
@@ -146,6 +149,9 @@ function desasignarRoles(member, guild, subCaducada) {
     [roles.torneosElite]: [27, 28, 29, 30, 31, 32],
     [roles.pLOPro]: [61, 62, 63],
     [roles.pLOElite]: [58, 59, 60],
+    [roles.totalBasic]: [69, 70, 71],
+    [roles.totalPro]: [67, 68, 72],
+    [roles.totalElite]: [64, 65, 66],
   };
 
   for (const [role, conditions] of Object.entries(rolesConditions)) {
@@ -339,8 +345,44 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
                   const object_id = res[i].object_id;
 
                   const roleName = CONST_ROLE_NAMES[object_id];
-
-                  if (roleName) {
+                  console.log(object_id);
+                  if (object_id > 63 && object_id < 73) {
+                    var role = guild.roles.cache.find((role) => role.id === roleName);
+                    let tier = "";
+                    switch (object_id) {
+                      case 69:
+                      case 70:
+                      case 71:
+                        message.member.roles.add("825664157998514176");
+                        message.member.roles.add("825664144324952104");
+                        message.member.roles.add("825664164512923659");
+                        tier = "Basic";
+                        break;
+                      case 67:
+                      case 68:
+                      case 72:
+                        message.member.roles.add("825664160141672458");
+                        message.member.roles.add("825664152508563456");
+                        message.member.roles.add("825664166945620039");
+                        message.member.roles.add("1190616657232658483");
+                        tier = "Pro";
+                        break;
+                      case 64:
+                      case 65:
+                      case 66:
+                        message.member.roles.add("825664162575024172");
+                        message.member.roles.add("825664154475036683");
+                        message.member.roles.add("1064895184992743424");
+                        message.member.roles.add("1190616803676782603");
+                        tier = "Elite";
+                        break;
+                    }
+                    message.reply(
+                      "Wow! ¡Alguien con Sub Total!... Eso no se ve todos los días. Se te ha incluido en los diferentes grupos de " +
+                        tier +
+                        ". ¡Felicidades!"
+                    );
+                  } else if (roleName) {
                     if (!message.member.roles.cache.some((role) => role.id === roleName)) {
                       var role = guild.roles.cache.find((role) => role.id === roleName);
                       message.member.roles.add(role);
