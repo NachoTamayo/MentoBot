@@ -505,8 +505,9 @@ client.once("ready", () => {
       getFecha();
       //Hacemos una query para recuperar todos los usuarios con estado de sub experied en la web
       //Necesitamos los IDs, por lo que sus tags los convertimos en IDs.
+      //SELECT u.discord, m.object_id FROM ${userTable}  AS u, ${membershipTable} AS m WHERE u.id = m.user_id AND( ( m.status IN('expired') AND m.checked IS NULL ) OR( m.status IN('active') AND m.expiration_date < CURRENT_DATE AND m.checked IS NULL ) OR( m.status IN('active') AND m.expiration_date IS NULL AND m.checked IS NULL ) ) AND u.discord IS NOT NULL AND m.object_id != 26 ORDER BY u.discord ASC;
       createQuery(
-        `SELECT u.discord, m.object_id, m.id FROM ${userTable}  AS u, ${membershipTable} AS m WHERE u.id = m.user_id AND( ( m.status IN('expired') AND m.checked IS NULL ) OR( m.status IN('active') AND m.expiration_date < CURRENT_DATE AND m.checked IS NULL ) OR( m.status IN('active') AND m.expiration_date IS NULL AND m.checked IS NULL ) ) AND u.discord IS NOT NULL AND m.object_id != 26 ORDER BY u.discord ASC;`,
+        `SELECT u.discord, m.object_id, m.id FROM ${userTable}  AS u, ${membershipTable} AS m WHERE u.id = m.user_id AND( ( m.status IN('expired') AND (m.checked IS NULL OR m.checked like 0) ) OR( m.status IN('active') AND m.expiration_date < CURRENT_DATE AND (m.checked IS NULL OR m.checked like 0) ) OR( m.status IN('active') AND m.expiration_date IS NULL AND (m.checked IS NULL OR m.checked like 0) ) ) AND u.discord IS NOT NULL AND m.object_id != 26 ORDER BY u.discord ASC;`,
         async function (response) {
           let subCaducada;
 
