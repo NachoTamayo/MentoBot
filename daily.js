@@ -136,7 +136,7 @@ function getKeyByValue(object, value) {
   return null; // Retorna null si no se encuentra el valor en el objeto
 }
 
-function desasignarRoles(member, guild, subCaducada) {
+function desasignarRoles(member, guild, subCaducada, idSub) {
   const rolesConditions = {
     [roles.cashBasic]: [7, 17, 16, 42, 43, 44],
     [roles.cashPro]: [8, 18, 19, 45, 46, 47],
@@ -155,23 +155,18 @@ function desasignarRoles(member, guild, subCaducada) {
   };
 
   for (const [role, conditions] of Object.entries(rolesConditions)) {
-    console.log(conditions);
     if (member.roles.cache.has(role) && conditions.includes(subCaducada)) {
       console.log(`El usuario ${member.user.username} tiene rol ${role}`);
       member.roles.remove(role);
-
-      createQuery(
-        `UPDATE ${membershipTable} SET checked = 1 where status like 'expired' and user_id = (SELECT user_id from ${userTable} where discord ="${member.user.id}")`,
-        () => {
-          console.log("Usuario actualizado en tabla membership");
-          const anunciosRole = roles[getKeyByValue(roles, role) + "Anuncios"];
-          console.log(`El usuario ${member.user.username} tiene rol ${anunciosRole}`);
-          if (!member.roles.cache.has(anunciosRole)) {
-            console.log(`Le ponemos Rol ${anunciosRole}`);
-            member.roles.add(anunciosRole);
-          }
+      createQuery(`UPDATE ${membershipTable} SET checked = 1 where id = ${idSub}`, () => {
+        console.log("Usuario actualizado en tabla membership");
+        const anunciosRole = roles[getKeyByValue(roles, role) + "Anuncios"];
+        console.log(`El usuario ${member.user.username} tiene rol ${anunciosRole}`);
+        if (!member.roles.cache.has(anunciosRole)) {
+          console.log(`Le ponemos Rol ${anunciosRole}`);
+          member.roles.add(anunciosRole);
         }
-      );
+      });
     }
   }
 }
@@ -490,10 +485,10 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
   }
 });
 
-async function getPlayer(id, subCaducada) {
+async function getPlayer(id, subCaducada, idSub) {
   let server = client.guilds.cache.get(guildId);
   let player = await server.members.fetch(id);
-  desasignarRoles(player, server, subCaducada);
+  desasignarRoles(player, server, subCaducada, idSub);
 }
 
 client.once("ready", () => {
@@ -511,13 +506,14 @@ client.once("ready", () => {
       //Hacemos una query para recuperar todos los usuarios con estado de sub experied en la web
       //Necesitamos los IDs, por lo que sus tags los convertimos en IDs.
       createQuery(
-        `select u.discord, m.object_id from ${userTable} as u, ${membershipTable} as m where u.id=m.user_id and m.status in ('expired') and m.checked is null and u.discord is not null order by u.discord asc`,
+        `SELECT u.discord, m.object_id, m.id FROM ${userTable}  AS u, ${membershipTable} AS m WHERE u.id = m.user_id AND( ( m.status IN('expired') AND m.checked IS NULL ) OR( m.status IN('active') AND m.expiration_date < CURRENT_DATE AND m.checked IS NULL ) OR( m.status IN('active') AND m.expiration_date IS NULL AND m.checked IS NULL ) ) AND u.discord IS NOT NULL AND m.object_id != 26 ORDER BY u.discord ASC;`,
         async function (response) {
           let subCaducada;
 
           for (let i = 0; i < response.length; i++) {
             const tagUser = response[i].discord;
             subCaducada = response[i].object_id;
+            idSub = response[i].id;
 
             const list = client.guilds.cache.get(guildId);
             await list.members.fetch().then((members) => {
@@ -526,7 +522,7 @@ client.once("ready", () => {
               if (member === undefined) {
                 member = members.find((u) => u.user.username + "#" + u.user.discriminator === tagUser);
               }
-              if (member != undefined) getPlayer(member.user.id, subCaducada);
+              if (member != undefined) getPlayer(member.user.id, subCaducada, idSub);
             });
             console.log("Usuario " + tagUser + " procesado");
           }
