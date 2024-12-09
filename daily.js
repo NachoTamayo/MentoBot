@@ -414,19 +414,23 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
           }
         );
       } else if (message.content.startsWith("!")) {
-        var msj =
-          "No conozco ese comando, quizás aún no me lo han enseñado. Por el momento, los que me sé son estos:\r\n\r\n";
+        var msj = "¿Has utilizado ya el comando !email? Si no es así:\r\n\r\n";
         msj += "**!email** *tu mail aquí* para validar tu mail.\r\n";
         msj += "**!sub** para validar tu suscripción.\r\n";
         message.reply(msj);
       } else if (!message.content.startsWith("!")) {
-        var msj = "Recuerda que en este canal **SOLO** puedes usar estos dos comandos:\r\n\r\n";
-        msj += "**!email** *tu mail aquí* para validar tu mail.\r\n";
-        msj += "**!sub** para validar tu suscripción.\r\n\r\n";
+        var msj = "Hola para acceder a los grupos son dos sencillos pasos:\r\n\r\n";
+        msj += "1. Validar tu mail de la web www.mentopoker.com\r\n";
+        msj += "!email (espacio) + (tu mail)\r\n";
+        msj += "Ejemplo:\r\n";
+        msj += "!email Mentopoker@gmail.es\r\n\r\n";
+        msg += "Una vez tienes validado esto, a entrar en los grupos de tu suscripción!\r\n\r\n";
+        msj += "2. Validar tu suscripción\r\n";
+        msj += "!sub\r\n";
+        msj += "Te añadirá a los grupos de tu suscripción\r\n\r\n";
         msj +=
-          "Si tienes cualquier otro problema: deja tu mensaje con tu problema y tu mail en el grupo " +
-          message.guild.channels.cache.get(soporteChannelID).toString() +
-          " .\r\n";
+          "¡Y ya está! Si tienes cualquier problema, abre un ticket en el canal " +
+          message.guild.channels.cache.get("1312015565090459699").toString();
         message.reply(msj);
       }
     } else {
@@ -495,45 +499,45 @@ client.once("ready", () => {
   console.log("Ready!");
   const list = client.guilds.cache.get(guildId);
   //En orden de asteriscos: Segundos, minutos, horas, dias, meses, años y día de la semana
-  new CronJob(
+  /*new CronJob(
     "0 2 * * *",
-    function () {
-      client.guilds.cache.forEach((g) => {
-        g.roles.fetch();
-      });
+    function () {*/
+  client.guilds.cache.forEach((g) => {
+    g.roles.fetch();
+  });
 
-      getFecha();
-      //Hacemos una query para recuperar todos los usuarios con estado de sub experied en la web
-      //Necesitamos los IDs, por lo que sus tags los convertimos en IDs.
-      //SELECT u.discord, m.object_id FROM ${userTable}  AS u, ${membershipTable} AS m WHERE u.id = m.user_id AND( ( m.status IN('expired') AND m.checked IS NULL ) OR( m.status IN('active') AND m.expiration_date < CURRENT_DATE AND m.checked IS NULL ) OR( m.status IN('active') AND m.expiration_date IS NULL AND m.checked IS NULL ) ) AND u.discord IS NOT NULL AND m.object_id != 26 ORDER BY u.discord ASC;
-      createQuery(
-        `SELECT u.discord, m.object_id, m.id FROM ${userTable}  AS u, ${membershipTable} AS m WHERE u.id = m.user_id AND( ( m.status IN('expired') AND (m.checked IS NULL OR m.checked like 0) ) OR( m.status IN('active') AND m.expiration_date < CURRENT_DATE AND (m.checked IS NULL OR m.checked like 0) ) OR( m.status IN('active') AND m.expiration_date IS NULL AND (m.checked IS NULL OR m.checked like 0) ) ) AND u.discord IS NOT NULL AND m.object_id != 26 ORDER BY u.discord ASC;`,
-        async function (response) {
-          let subCaducada;
+  getFecha();
+  //Hacemos una query para recuperar todos los usuarios con estado de sub experied en la web
+  //Necesitamos los IDs, por lo que sus tags los convertimos en IDs.
+  //SELECT u.discord, m.object_id FROM ${userTable}  AS u, ${membershipTable} AS m WHERE u.id = m.user_id AND( ( m.status IN('expired') AND m.checked IS NULL ) OR( m.status IN('active') AND m.expiration_date < CURRENT_DATE AND m.checked IS NULL ) OR( m.status IN('active') AND m.expiration_date IS NULL AND m.checked IS NULL ) ) AND u.discord IS NOT NULL AND m.object_id != 26 ORDER BY u.discord ASC;
+  createQuery(
+    `SELECT u.discord, m.object_id, m.id FROM ${userTable}  AS u, ${membershipTable} AS m WHERE u.id = m.user_id AND( ( m.status IN('expired') AND( m.checked IS NULL OR m.checked LIKE 0 ) ) OR( m.status IN('active', 'pending', 'cancelled') AND m.expiration_date < CURRENT_DATE AND( m.checked IS NULL OR m.checked LIKE 0 ) ) OR( m.status IN('active', 'pending', 'cancelled') AND m.expiration_date IS NULL AND( m.checked IS NULL OR m.checked LIKE 0 ) ) ) AND u.discord IS NOT NULL AND m.object_id != 26 ORDER BY u.discord ASC;`,
+    async function (response) {
+      let subCaducada;
 
-          for (let i = 0; i < response.length; i++) {
-            const tagUser = response[i].discord;
-            subCaducada = response[i].object_id;
-            idSub = response[i].id;
+      for (let i = 0; i < response.length; i++) {
+        const tagUser = response[i].discord;
+        subCaducada = response[i].object_id;
+        idSub = response[i].id;
 
-            const list = client.guilds.cache.get(guildId);
-            await list.members.fetch().then((members) => {
-              let member = members.find((u) => u.user.id === tagUser);
+        const list = client.guilds.cache.get(guildId);
+        await list.members.fetch().then((members) => {
+          let member = members.find((u) => u.user.id === tagUser);
 
-              if (member === undefined) {
-                member = members.find((u) => u.user.username + "#" + u.user.discriminator === tagUser);
-              }
-              if (member != undefined) getPlayer(member.user.id, subCaducada, idSub);
-            });
-            console.log("Usuario " + tagUser + " procesado");
+          if (member === undefined) {
+            member = members.find((u) => u.user.username + "#" + u.user.discriminator === tagUser);
           }
-        }
-      );
-    },
+          if (member != undefined) getPlayer(member.user.id, subCaducada, idSub);
+        });
+        console.log("Usuario " + tagUser + " procesado");
+      }
+    }
+  );
+  /*},
     null,
     true,
     "Europe/Madrid"
-  );
+  );*/
 });
 
 client.login(token);
