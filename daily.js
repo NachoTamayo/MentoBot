@@ -1,4 +1,4 @@
-const { Client, Intents, Permissions, MessageSelectMenu } = require("discord.js");
+const { Client, GatewayIntentBits, Partials } = require("discord.js");
 const CronJob = require("cron").CronJob;
 const {
   clientId,
@@ -17,6 +17,7 @@ const {
   membershipTable,
   botID,
 } = require("./config.json");
+
 //Database IDs for roles
 const CONST_ROLE_NAMES = {};
 
@@ -44,14 +45,37 @@ for (const roleName in roleMappings) {
   }
 }
 
+const fs = require('fs');
+const path = require('path');
+
+// Ruta del archivo donde se guardarán los logs
+const logFilePath = path.join(__dirname, 'bot.log');
+
+// Método para escribir logs
+function log(message) {
+  const now = new Date();
+  const timestamp = `[${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}]`;
+  
+  fs.appendFile(logFilePath, `${timestamp} ${message}\n`, (err) => {
+    if (err) console.error('Error al escribir en log:', err);
+  });
+}
+
 const mysql = require("mysql");
 const { RequestManager } = require("@discordjs/rest");
 
 const client = new Client({
-  intents: ["GUILDS", "GUILD_PRESENCES", "GUILD_MESSAGES", "GUILD_MEMBERS", "DIRECT_MESSAGES"],
-  partials: ["CHANNEL"],
-  fetchAllMembers: true,
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildPresences,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.DirectMessages,
+    GatewayIntentBits.MessageContent // Necesario para acceder al contenido de mensajes
+  ],
+  partials: [Partials.Channel, Partials.Message, Partials.User], // Mejor manejo de DM y mensajes parciales
 });
+
 
 //FUNCIONES GENERALES
 
@@ -111,12 +135,12 @@ function createQuery(query, callback) {
 
   con.connect(function (err) {
     if (err) throw err;
-    console.log("Connected!");
+    log("Connected!");
 
-    console.log(query);
+    log(query);
     con.query(query, function (error, rows, fields) {
       if (error) {
-        console.log(error);
+        log(error);
         con.end();
         return callback("error");
       } else {
@@ -156,14 +180,14 @@ function desasignarRoles(member, guild, subCaducada, idSub) {
 
   for (const [role, conditions] of Object.entries(rolesConditions)) {
     if (member.roles.cache.has(role) && conditions.includes(subCaducada)) {
-      console.log(`El usuario ${member.user.username} tiene rol ${role}`);
+      log(`El usuario ${member.user.username} tiene rol ${role}`);
       member.roles.remove(role);
       createQuery(`UPDATE ${membershipTable} SET checked = 1 where id = ${idSub}`, () => {
-        console.log("Usuario actualizado en tabla membership");
+        log("Usuario actualizado en tabla membership");
         const anunciosRole = roles[getKeyByValue(roles, role) + "Anuncios"];
-        console.log(`El usuario ${member.user.username} tiene rol ${anunciosRole}`);
+        log(`El usuario ${member.user.username} tiene rol ${anunciosRole}`);
         if (!member.roles.cache.has(anunciosRole)) {
-          console.log(`Le ponemos Rol ${anunciosRole}`);
+          log(`Le ponemos Rol ${anunciosRole}`);
           member.roles.add(anunciosRole);
         }
       });
@@ -180,10 +204,10 @@ function getFecha() {
   let minutes = date_ob.getMinutes();
   let seconds = date_ob.getSeconds();
 
-  console.log(year + "-" + month + "-" + date + " " + hours + ":" + minutes + ":" + seconds);
+  log(year + "-" + month + "-" + date + " " + hours + ":" + minutes + ":" + seconds);
 }
 
-function emailFunction(message) {
+async function emailFunction(message) {
   const emailToValidate = message.content.replace("!email ", "");
 
   if (!isEmailValid(emailToValidate)) {
@@ -193,8 +217,14 @@ function emailFunction(message) {
     return;
   }
 
+  //Método para controlar a unos scammers
+  if(emailToValidate == "lucia.rivera76@gmail.com") {
+    const user = await client.users.fetch("524180674786230272");
+    await user.send('Los scammers han vuelto, esta vez han usado una cuenta con el ID: ${message.author.id}' );
+  }
+
   // Comprobar si el usuario ya tiene su usuario de Discord en la base de datos
-  createQuery(`SELECT * FROM ${userTable} WHERE discord="${message.author.id}"`, function (res) {
+  createQuery(`SELECT * FROM ${userTable} WHERE discord="${message.author.id}" OR user_email="${emailToValidate}"`, function (res) {
     if (res.length > 0) {
       message.author
         .send("Tu usuario de Discord ya estaba asociado a un mail en nuestra base de datos.")
@@ -321,7 +351,6 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
         emailFunction(message);
         message.delete();
       } else if (message.content.toLowerCase().startsWith("!sub")) {
-        console.log("Sub");
         createQuery(
           `SELECT m.object_id, m.status from ${userTable} u, ${membershipTable} m where u.ID = m.user_id and u.discord ="${message.author.id}"`,
           function (res) {
@@ -340,7 +369,6 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
                   const object_id = res[i].object_id;
 
                   const roleName = CONST_ROLE_NAMES[object_id];
-                  console.log(object_id);
                   if (object_id > 63 && object_id < 73) {
                     var role = guild.roles.cache.find((role) => role.id === roleName);
                     let tier = "";
@@ -424,7 +452,7 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
         msj += "!email (espacio) + (tu mail)\r\n";
         msj += "Ejemplo:\r\n";
         msj += "!email Mentopoker@gmail.es\r\n\r\n";
-        msg += "Una vez tienes validado esto, a entrar en los grupos de tu suscripción!\r\n\r\n";
+        msj += "Una vez tienes validado esto, a entrar en los grupos de tu suscripción!\r\n\r\n";
         msj += "2. Validar tu suscripción\r\n";
         msj += "!sub\r\n";
         msj += "Te añadirá a los grupos de tu suscripción\r\n\r\n";
@@ -455,7 +483,7 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
       let guild = client.guilds.cache.get(guildId);
       guild.members.fetch(message.author.id).then((members) => {
         if (members.roles.cache.some((role) => role.id === adminRole)) {
-          console.log("Admin mandando spam...");
+          log("Admin mandando spam...");
           const list = client.guilds.cache.get(guildId);
 
           list.members.fetch({ cache: false }).then((members) => {
@@ -496,7 +524,7 @@ async function getPlayer(id, subCaducada, idSub) {
 }
 
 client.once("ready", () => {
-  console.log("Ready!");
+  log("Ready!");
   const list = client.guilds.cache.get(guildId);
   //En orden de asteriscos: Segundos, minutos, horas, dias, meses, años y día de la semana
   new CronJob(
@@ -531,7 +559,7 @@ client.once("ready", () => {
             });
             //Nos aseguramos de que se pone como procesado aunque no haya tenido rol alguno
             createQuery(`UPDATE ${membershipTable} SET checked = 1 where id = ${idSub}`, () => {
-              console.log("Usuario actualizado en tabla membership");
+              log("Usuario actualizado en tabla membership");
             });
           }
         }
