@@ -224,7 +224,7 @@ async function emailFunction(message) {
   }
 
   // Comprobar si el usuario ya tiene su usuario de Discord en la base de datos
-  createQuery(`SELECT * FROM ${userTable} WHERE discord="${message.author.id}" OR user_email="${emailToValidate}"`, function (res) {
+  createQuery(`SELECT * FROM ${userTable} WHERE discord="${message.author.id}" OR (user_email="${emailToValidate}" && discord is not null)`, function (res) {
     if (res.length > 0) {
       message.author
         .send("Tu usuario de Discord ya estaba asociado a un mail en nuestra base de datos.")
@@ -246,7 +246,7 @@ async function emailFunction(message) {
               if (res.changedRows) {
                 message.author
                   .send(
-                    `Se ha asociado el email ${emailToValidate} con tu usuario ${message.author.id}.\r\n\r\n Muchas gracias :partying_face:`
+                    `Se ha asociado el email ${emailToValidate} con tu usuario.\r\n\r\n Muchas gracias :partying_face:`
                   )
                   .catch(console.error);
               } else {
