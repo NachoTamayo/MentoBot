@@ -164,7 +164,7 @@ const getDiscordRol = (plan_id) => {
     case 8234: // Torneos Pro
       return new Array(roles.torneosPro);
     default:
-      return [];
+      return new Array(roles.mentoFree);
   }
 };
 
@@ -231,8 +231,20 @@ client.on("messageCreate", async (message) => {
   if (message.author.bot) return; // Ignorar mensajes de bots
 
   if (!message.content) return; // Ignorar mensajes sin contenido
-  if (message.channel.id !== "935193136664309851") return; // Reemplaza con el ID de tu canal
+  if (message.channel.id !== "935193136664309851" && message.channel.id !== "1104058780645335171") return;
+
   console.log(`Mensaje de ${message.author.tag}: ${message.content}`);
+  if (message.content.startsWith("!deals") && message.channel.id === "1104058780645335171") {
+    message.reply(
+      'Hola! Has solicitado información sobre los deals, revisa tu sección de mensajes privados y mira bien que tengas "solicitudes pendientes" y abierta recepción de los mismos.\n\nkmayor99 te contactará por esa vía, CONFIRMA su nombre de discord para evitar problemas (kmayor99, tal cual, tiene que se exactamente así)\n\nPuedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sobre los deals por si quieres directamente elegir uno.'
+    );
+    return;
+  }
+  //Cualquier mensaje que no sea !deals se ignora
+  if (message.channel.id === "1104058780645335171") {
+    message.reply("Este canal es solo para solicitar información sobre los deals. Usa !deals para más info.");
+    return;
+  }
   if (
     !message.content.startsWith("!sub") &&
     !message.content.startsWith("!email") &&
@@ -260,7 +272,7 @@ client.on("messageCreate", async (message) => {
     }
     const check = createQuery(`SELECT discord FROM ngf_users where user_email = "${email}"`, async (rows) => {
       if (rows.length == 0) {
-        message.author.send("Este email no está asociado a ningún usuario de Discord.");
+        message.author.send("Este email no está asociado a ningún usuario de la escuela.");
         try {
           message.delete();
         } catch (e) {
@@ -308,8 +320,8 @@ client.on("messageCreate", async (message) => {
           }
         );
 
-        const res = createQuery(
-          `UPDATE ngf_usermeta SET meta_value = '${message.author.id}' where meta_key = 'discord' and user_id = (SELECT id FROM ngf_users where user_email = '${email}');`,
+        const metaRes = createQuery(
+          `SELECT * FROM ngf_usermeta where user_id = (SELECT id FROM ngf_users where user_email = '${email}') and meta_key = 'discord';`,
           async (rows) => {
             if (rows === "error") {
               message.author.send(
@@ -318,9 +330,35 @@ client.on("messageCreate", async (message) => {
 
               return;
             }
-            message.author.send("Tu usuario ha sido actualizado correctamente.");
-            message.delete();
-            return;
+            if (rows.length == 0) {
+              const resInsert = createQuery(
+                `INSERT INTO ngf_usermeta (user_id, meta_key, meta_value) VALUES ((SELECT id FROM ngf_users where user_email = '${email}'), 'discord', '${message.author.id}');`,
+                async (rows) => {
+                  if (rows === "error") {
+                    message.author.send(
+                      "Error al actualizar tu usuario en la base de datos. Contacta con Soporte abriendo un ticket en <#1312015565090459699>"
+                    );
+
+                    return;
+                  }
+                  message.author.send("Tu usuario ha sido actualizado correctamente.");
+                }
+              );
+            } else {
+              const resUpdate = createQuery(
+                `UPDATE ngf_usermeta SET meta_value = '${message.author.id}' where meta_key = 'discord' and user_id = (SELECT id FROM ngf_users where user_email = '${email}');`,
+                async (rows) => {
+                  if (rows === "error") {
+                    message.author.send(
+                      "Error al actualizar tu usuario en la base de datos. Contacta con Soporte abriendo un ticket en <#1312015565090459699>"
+                    );
+
+                    return;
+                  }
+                  message.author.send("Tu usuario ha sido actualizado correctamente.");
+                }
+              );
+            }
           }
         );
       }
