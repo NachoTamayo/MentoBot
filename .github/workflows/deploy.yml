@@ -16,9 +16,10 @@ jobs:
           username: root
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            cd /root/MentoBot
-            git pull origin master
             source ~/.nvm/nvm.sh
+            cd /root/MentoBot
+            git fetch origin
+            git reset --hard origin/master
             npm install --production
             pm2 restart MentoBot MentoAPI
             pm2 save
