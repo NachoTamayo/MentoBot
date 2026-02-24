@@ -1,5 +1,9 @@
 Dockerfile
 /node_modules
-config.json
+config*.json
 collect.js
 roles.js
+.env
+gamification
+shared
+*.log
