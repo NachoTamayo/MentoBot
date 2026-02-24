@@ -16,7 +16,7 @@ const {
   userTable,
   membershipTable,
   botID,
-} = require("./config.json");
+} = require("../config/config.json");
 
 //Database IDs for roles
 const CONST_ROLE_NAMES = {};
@@ -45,19 +45,23 @@ for (const roleName in roleMappings) {
   }
 }
 
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 // Ruta del archivo donde se guardarán los logs
-const logFilePath = path.join(__dirname, 'bot.log');
+const logFilePath = path.join(__dirname, "bot.log");
 
 // Método para escribir logs
 function log(message) {
   const now = new Date();
-  const timestamp = `[${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}]`;
-  
+  const timestamp = `[${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+    now.getDate()
+  ).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(
+    now.getSeconds()
+  ).padStart(2, "0")}]`;
+
   fs.appendFile(logFilePath, `${timestamp} ${message}\n`, (err) => {
-    if (err) console.error('Error al escribir en log:', err);
+    if (err) console.error("Error al escribir en log:", err);
   });
 }
 
@@ -71,11 +75,10 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.DirectMessages,
-    GatewayIntentBits.MessageContent // Necesario para acceder al contenido de mensajes
+    GatewayIntentBits.MessageContent, // Necesario para acceder al contenido de mensajes
   ],
   partials: [Partials.Channel, Partials.Message, Partials.User], // Mejor manejo de DM y mensajes parciales
 });
-
 
 //FUNCIONES GENERALES
 
@@ -90,7 +93,6 @@ function isEmailValid(email) {
   var valid = emailRegex.test(email);
   if (!valid) return false;
 
-  // Further checking of some things regex can't handle
   var parts = email.split("@");
   if (parts[0].length > 64) return false;
 
@@ -183,7 +185,6 @@ function desasignarRoles(member, guild, subCaducada, idSub) {
       log(`El usuario ${member.user.username} tiene rol ${role}`);
       member.roles.remove(role);
       createQuery(`UPDATE ${membershipTable} SET checked = 1 where id = ${idSub}`, () => {
-        log("Usuario actualizado en tabla membership");
         const anunciosRole = roles[getKeyByValue(roles, role) + "Anuncios"];
         log(`El usuario ${member.user.username} tiene rol ${anunciosRole}`);
         if (!member.roles.cache.has(anunciosRole)) {
@@ -218,52 +219,55 @@ async function emailFunction(message) {
   }
 
   //Método para controlar a unos scammers
-  if(emailToValidate == "lucia.rivera76@gmail.com") {
+  if (emailToValidate == "lucia.rivera76@gmail.com") {
     const user = await client.users.fetch("524180674786230272");
-    await user.send('Los scammers han vuelto, esta vez han usado una cuenta con el ID: ${message.author.id}' );
+    await user.send("Los scammers han vuelto, esta vez han usado una cuenta con el ID: ${message.author.id}");
   }
 
   // Comprobar si el usuario ya tiene su usuario de Discord en la base de datos
-  createQuery(`SELECT * FROM ${userTable} WHERE discord="${message.author.id}" OR (user_email="${emailToValidate}" && discord is not null)`, function (res) {
-    if (res.length > 0) {
-      message.author
-        .send("Tu usuario de Discord ya estaba asociado a un mail en nuestra base de datos.")
-        .catch(console.error);
-    } else {
-      // Si no hay registro para ese usuario, buscar si ese mail existe en la base de datos
-      createQuery(`SELECT * FROM ${userTable} WHERE user_email="${emailToValidate}"`, function (res) {
-        if (res.length == 0) {
-          message.author
-            .send(
-              "El email que me has dado no existe en nuestra base de datos. Asegúrate de haberlo escrito bien y vuelve a probar. Recuerda que tiene que ser con el mail que te registraste."
-            )
-            .catch(console.error);
-        } else {
-          // Hacer el update
-          createQuery(
-            `UPDATE ${userTable} SET discord="${message.author.id}" WHERE user_email="${emailToValidate}"`,
-            function (res) {
-              if (res.changedRows) {
-                message.author
-                  .send(
-                    `Se ha asociado el email ${emailToValidate} con tu usuario.\r\n\r\n Muchas gracias :partying_face:`
-                  )
-                  .catch(console.error);
-              } else {
-                message.author
-                  .send(
-                    `Algo en mis sistemas ha fallado :weary:\r\n\r\nSi necesitas ayuda usa el canal '${message.guild.channels.cache
-                      .get(soporteChannelID)
-                      .toString()}' de nuestro Discord.`
-                  )
-                  .catch(console.error);
+  createQuery(
+    `SELECT * FROM ${userTable} WHERE discord="${message.author.id}" OR (user_email="${emailToValidate}" && discord is not null)`,
+    function (res) {
+      if (res.length > 0) {
+        message.author
+          .send("Tu usuario de Discord ya estaba asociado a un mail en nuestra base de datos.")
+          .catch(console.error);
+      } else {
+        // Si no hay registro para ese usuario, buscar si ese mail existe en la base de datos
+        createQuery(`SELECT * FROM ${userTable} WHERE user_email="${emailToValidate}"`, function (res) {
+          if (res.length == 0) {
+            message.author
+              .send(
+                "El email que me has dado no existe en nuestra base de datos. Asegúrate de haberlo escrito bien y vuelve a probar. Recuerda que tiene que ser con el mail que te registraste."
+              )
+              .catch(console.error);
+          } else {
+            // Hacer el update
+            createQuery(
+              `UPDATE ${userTable} SET discord="${message.author.id}" WHERE user_email="${emailToValidate}"`,
+              function (res) {
+                if (res.changedRows) {
+                  message.author
+                    .send(
+                      `Se ha asociado el email ${emailToValidate} con tu usuario.\r\n\r\n Muchas gracias :partying_face:`
+                    )
+                    .catch(console.error);
+                } else {
+                  message.author
+                    .send(
+                      `Algo en mis sistemas ha fallado :weary:\r\n\r\nSi necesitas ayuda usa el canal '${message.guild.channels.cache
+                        .get(soporteChannelID)
+                        .toString()}' de nuestro Discord.`
+                    )
+                    .catch(console.error);
+                }
               }
-            }
-          );
-        }
-      });
+            );
+          }
+        });
+      }
     }
-  });
+  );
 }
 
 //FUNCIONES GENERALES
@@ -422,7 +426,7 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
                           message.guild.channels.cache.get(soporteChannelID).toString()
                       );
                     }
-                  } else if(res.length == 1) {
+                  } else if (res.length == 1) {
                     message.reply(
                       "Con la suscripción gratuita no puedes tener acceso a los grupos de Discord. Te animo a que te suscribas a Basic/Pro/Élite para descubrir la de cosas que hacemos en MentoPoker :)."
                     );
