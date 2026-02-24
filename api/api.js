@@ -1,7 +1,16 @@
 const crypto = require("crypto");
 const express = require("express");
 const { Client, GatewayIntentBits, Partials } = require("discord.js");
-const { token, clientId, guildId, webhookSecret, plans, roles } = require("./config.json");
+const {
+  token,
+  clientId,
+  guildId,
+  webhookSecret,
+  plans,
+  roles,
+  mentoDevGuildId,
+  pedidosChannelId,
+} = require("./config.json");
 const fs = require("fs");
 const path = require("path");
 
@@ -32,6 +41,29 @@ function log(message) {
   fs.appendFile(logFilePath, `${timestamp} ${message}\n`, (err) => {
     if (err) console.error("Error al escribir en log:", err);
   });
+}
+
+function validateTimestamp(timestamp, res) {
+  if (!timestamp) return true;
+
+  const nowUtcMs = Date.now(); // JS Date.now() ya está en UTC epoch ms
+  const tsMs = Date.parse(timestamp); // ISO string -> epoch UTC ms
+
+  if (isNaN(tsMs)) {
+    log(`[myCRED] Invalid timestamp format: ${timestamp}`);
+    res.status(400).json({ ok: false, error: "Invalid timestamp" });
+    return false;
+  }
+
+  const diffMinutes = Math.abs(nowUtcMs - tsMs) / (1000 * 60);
+
+  if (diffMinutes > 10) {
+    log(`[myCRED] Stale payload rejected (age: ${diffMinutes.toFixed(2)} min)`);
+    res.status(400).json({ ok: false, error: "Stale payload" });
+    return false;
+  }
+
+  return true;
 }
 
 const app = express();
@@ -86,13 +118,13 @@ app.post("/api/subUpdated", async (req, res) => {
       console.log("Roles a añadir:", rolesToAdd);
       for (rol in rolesToAdd) {
         console.log(`Adding role ${rolesToAdd[rol]} to user ${discord}`);
-        member.roles.add(rolesToAdd[rol]);
+        await member.roles.add(rolesToAdd[rol]);
       }
 
       const rolesToDel = rolesToRemove(plan_id);
       for (rol in rolesToDel) {
         console.log(`Removing role ${rolesToDel[rol]} from user ${discord}`);
-        member.roles.remove(rolesToDel[rol]);
+        await member.roles.remove(rolesToDel[rol]);
       }
       // Notificar al usuario en Discord (opcional)
       //member.send(`¡Hola! Tu suscripción ha sido activada. Gracias por tu apoyo. 🎉`);
@@ -107,7 +139,8 @@ app.post("/api/subUpdated", async (req, res) => {
       const rolesToDel = getDiscordRol(plan_id);
       for (rol in rolesToDel) {
         console.log(`Removing role ${rolesToDel[rol]} from user ${discord}`);
-        member.roles.remove(rolesToDel[rol]);
+        await member.roles.remove(rolesToDel[rol]);
+        await member.roles.add("1417758013225435176"); // rol de anuncios
       }
       log(`Suscripción expirada para usuario ${user_id} (Discord: ${discord}). Número de pedido: ${jsonBody.order_id}`);
       // Opcionalmente, podrías eliminar roles o notificar al usuario
@@ -141,48 +174,77 @@ app.post("/api/subUpdated", async (req, res) => {
   return res.sendStatus(200);
 });
 
-app.post("/api/rankUpdated", async (req, res) => {
-  const signature = req.get("X-Signature");
-  const from = req.get("X-Webhook-From");
-  const secret = webhookSecret; // process.env.MYCRED_WEBHOOK_SECRET
+const rawJsonRank = express.raw({ type: "application/json" });
 
-  if (!verifySignature(req.rawBody || Buffer.from(""), signature, secret)) {
-    return res.status(400).json({ ok: false, error: "Invalid signature" });
+app.post("/api/rankUpdated", rawJsonRank, async (req, res) => {
+  const signature = req.get("X-Signature") || "";
+  const from = req.get("X-Webhook-From");
+  const secret = webhookSecret;
+
+  // Ensure raw buffer
+  const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.from("");
+
+  // Log incoming
+  console.log("Headers:", req.headers);
+  console.log("Raw body len:", raw.length);
+
+  // Parse JSON safely
+  let payload = {};
+  try {
+    payload = raw.length ? JSON.parse(raw.toString("utf8")) : {};
+  } catch (e) {
+    console.error("Invalid JSON:", e);
+    return res.status(400).json({ ok: false, error: "Invalid JSON" });
   }
 
-  const payload = req.body || {};
-  const { event, user, rank, timestamp, site } = payload;
-
-  // (Opcional) Anti-replay simple: rechaza payloads muy antiguos (p.ej. > 10 min)
-  if (timestamp) {
-    const ageMs = Math.abs(Date.now() - Date.parse(timestamp));
-    if (ageMs > 10 * 60 * 1000) {
-      return res.status(400).json({ ok: false, error: "Stale payload" });
+  // Verify signature in HEX (PHP hash_hmac default output)
+  if (signature) {
+    const computedHex = crypto.createHmac("sha256", secret).update(raw).digest("hex");
+    if (computedHex !== signature) {
+      log(`[myCRED] Invalid signature from ${from}`);
+      return res.status(401).json({ ok: false, error: "Invalid signature" });
     }
   }
 
-  // Procesa el evento
+  const { event, user, rank, timestamp, site } = payload;
+  console.log("Parsed body:", payload);
+
+  // Anti-replay: reject old payloads (> 10 min)
+  //if (!validateTimestamp(timestamp, res)) return;
+
   try {
+    const server = client.guilds.cache.get(guildId);
+
     switch (event) {
-      case "mycred.rank.promoted":
-        // 👉 tu lógica aquí (guardar en BD, enviar email, etc.)
-        console.log(
+      case "mycred.rank.promoted": {
+        log(
           `[myCRED] PROMOTED user=${user?.id} ${user?.login} -> rank=${rank?.new_id} (${rank?.new_name}) from=${from}`
         );
-        break;
-      case "mycred.rank.demoted":
-        // 👉 tu lógica aquí
-        console.log(
-          `[myCRED] DEMOTED  user=${user?.id} ${user?.login} -> rank=${rank?.new_id} (${rank?.new_name}) from=${from}`
+        const promotedMember = server?.members.cache.find(
+          (m) => m.user.username === user?.login || m.user.id === user?.discord_id
         );
+        if (promotedMember && rank?.new_id) {
+          const roleToAdd = getRoleByRank(rank.new_id);
+          if (roleToAdd) {
+            await promotedMember.roles.add(roleToAdd);
+            log(`[myCRED] Added role ${roleToAdd} to user ${user?.login}`);
+          }
+        }
         break;
-      default:
+      }
+      case "mycred.rank.demoted": {
+        log(
+          `[myCRED] DEMOTED user=${user?.id} ${user?.login} -> rank=${rank?.new_id} (${rank?.new_name}) from=${from}`
+        );
+        // TODO: remove role if needed
+        break;
+      }
+      default: {
         console.log(`[myCRED] Unhandled event: ${event}`);
-        // Puedes devolver 204 para eventos desconocidos
         return res.status(204).end();
+      }
     }
 
-    // Responde rápido para no bloquear el remitente
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error("Webhook handler error:", err);
@@ -190,10 +252,91 @@ app.post("/api/rankUpdated", async (req, res) => {
   }
 });
 
-app.post("/api/customerUpdated", async (req, res) => {
-  console.log("Customer updated webhook received");
-  // Similar manejo de firma y parsing como en /api/subUpdated
-  return res.status(200).send("ok");
+app.post("/api/orderUpdated", rawJsonRank, async (req, res) => {
+  const signature = req.get("X-Signature") || "";
+  const from = req.get("X-Webhook-From");
+  const secret = webhookSecret;
+
+  // Ensure raw buffer
+  const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.from("");
+
+  // Log incoming
+  console.log("Headers:", req.headers);
+  console.log("Raw body len:", raw.length);
+
+  // Parse JSON safely
+  let payload = {};
+  try {
+    payload = raw.length ? JSON.parse(raw.toString("utf8")) : {};
+  } catch (e) {
+    console.error("Invalid JSON:", e);
+    return res.status(400).json({ ok: false, error: "Invalid JSON" });
+  }
+
+  // Verify signature in HEX (PHP hash_hmac default output)
+  if (signature) {
+    const computedHex = crypto.createHmac("sha256", secret).update(raw).digest("hex");
+    if (computedHex !== signature) {
+      log(`[myCRED] Invalid signature from ${from}`);
+      return res.status(401).json({ ok: false, error: "Invalid signature" });
+    }
+  }
+
+  const { event, user, rank, timestamp, site } = payload;
+  //console.log("Parsed body:", payload);
+
+  // Anti-replay: reject old payloads (> 10 min)
+  //if (!validateTimestamp(timestamp, res)) return;
+
+  try {
+    //Si el payload es {}, no hacer nada
+    if (Object.keys(payload).length === 0 && payload.constructor === Object) {
+      return res.status(200).json({ ok: true });
+    }
+    const mentoDev = client.guilds.cache.get(mentoDevGuildId);
+    const pedidosChannel = mentoDev.channels.cache.get(pedidosChannelId);
+
+    if (payload.status == "failed") {
+      log(`[Pedidos] Pedido fallido. ID de pedido: ${payload.id}`);
+      return res.status(200).json({ ok: true });
+    }
+
+    const cliente = payload.billing.first_name + " " + payload.billing.last_name;
+    const email = payload.billing.email;
+    const metodoPago = payload.payment_method_title;
+    const userDiscord = payload.meta_data.find((meta) => meta.key === "discord")?.value;
+    // Si uno de los pedidos es "Membresía", no enviar notificación
+    const tieneMembresia = payload.line_items.some((item) => item.name.toLowerCase().includes("membresía"));
+    payload.line_items.forEach((item) => {
+      console.log(`Item: ${item.name}, Product ID: ${item.product_id}`);
+    });
+    const esFree = payload.line_items.some((item) => item.product_id === plans.mentoFree || item.product_id === 78298);
+    if (esFree) {
+      log(`[Pedidos] Pedido de plan gratuito. ID de pedido: ${payload.id}. No se envía notificación.`);
+      return res.status(200).json({ ok: true });
+    }
+    if (tieneMembresia) {
+      log(`[Pedidos] Pedido contiene Membresía. ID de pedido: ${payload.id}. No se envía notificación.`);
+      return res.status(200).json({ ok: true });
+    }
+    const pedido = payload.line_items.map((item) => `${item.name} x${item.quantity}`).join(", ");
+    const enlace = `https://mento.gg/wp-admin/post.php?post=${payload.id}&action=edit`;
+    //La primera linea del mensaje serán 10 emojis de dinero 💰💰💰💰💰💰💰💰💰💰
+    // Tabulación a partir de la segunda línea
+    const mensaje = `💰💰💰💰💰💰💰💰💰💰\n\nNuevo pedido recibido:\n\t\tCliente: ${cliente} \n\t\tEmail: ${email}\n\t\tDiscord: ${userDiscord}\n\t\tMétodo de pago: ${metodoPago}\n\t\tPedido: ${pedido}\n\t\tEnlace al pedido: ${enlace}\n\n`;
+
+    // Enviar mensaje al canal de pedidos
+    if (pedidosChannel) {
+      pedidosChannel.send(mensaje);
+      log(`[Pedidos] Nuevo pedido de ${cliente} (${email}). Discord: ${userDiscord}`);
+    } else {
+      log(`[Pedidos] No se encontró el canal de pedidos.`);
+    }
+  } catch (err) {
+    console.error("Webhook handler error:", err);
+    return res.status(500).json({ ok: false, error: "Server error" });
+  }
+  res.status(200).json({ ok: true });
 });
 
 const getDiscordRol = (plan_id) => {
@@ -240,8 +383,16 @@ const rolesToRemove = (plan_id) => {
   }
 };
 
+app.post("/api/orderUpdated", async (req, res) => {
+  console.log("Order updated webhook received");
+  console.log(req.body);
+  // Similar manejo de firma y parsing como en /api/subUpdated
+  return res.status(200).send("ok");
+});
+
 app.get("/api/subUpdated", (req, res) => res.status(200).send("ok"));
 app.get("/api/rankUpdated", (req, res) => res.status(200).send("ok"));
+app.get("/api/orderUpdated", (req, res) => res.status(200).send("ok"));
 app.get("/healthz", (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
 client.once("ready", () => {
