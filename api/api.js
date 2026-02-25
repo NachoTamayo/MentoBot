@@ -33,9 +33,9 @@ const logFilePath = path.join(__dirname, "bot.log");
 function log(message) {
   const now = new Date();
   const timestamp = `[${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
-    now.getDate()
+    now.getDate(),
   ).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(
-    now.getSeconds()
+    now.getSeconds(),
   ).padStart(2, "0")}]`;
 
   fs.appendFile(logFilePath, `${timestamp} ${message}\n`, (err) => {
@@ -131,8 +131,8 @@ app.post("/api/subUpdated", async (req, res) => {
       if (rolesToDel.length > 0) {
         log(
           `Suscripción activada para usuario ${user_id} (Discord: ${discord}). Roles añadidos: ${rolesToAdd.join(
-            ", "
-          )}, Roles eliminados: ${rolesToDel.join(", ")}. Número de pedido: ${jsonBody.order_id}`
+            ", ",
+          )}, Roles eliminados: ${rolesToDel.join(", ")}. Número de pedido: ${jsonBody.order_id}`,
         );
       }
     } else if (status === "expired") {
@@ -218,10 +218,10 @@ app.post("/api/rankUpdated", rawJsonRank, async (req, res) => {
     switch (event) {
       case "mycred.rank.promoted": {
         log(
-          `[myCRED] PROMOTED user=${user?.id} ${user?.login} -> rank=${rank?.new_id} (${rank?.new_name}) from=${from}`
+          `[myCRED] PROMOTED user=${user?.id} ${user?.login} -> rank=${rank?.new_id} (${rank?.new_name}) from=${from}`,
         );
         const promotedMember = server?.members.cache.find(
-          (m) => m.user.username === user?.login || m.user.id === user?.discord_id
+          (m) => m.user.username === user?.login || m.user.id === user?.discord_id,
         );
         if (promotedMember && rank?.new_id) {
           const roleToAdd = getRoleByRank(rank.new_id);
@@ -234,7 +234,7 @@ app.post("/api/rankUpdated", rawJsonRank, async (req, res) => {
       }
       case "mycred.rank.demoted": {
         log(
-          `[myCRED] DEMOTED user=${user?.id} ${user?.login} -> rank=${rank?.new_id} (${rank?.new_name}) from=${from}`
+          `[myCRED] DEMOTED user=${user?.id} ${user?.login} -> rank=${rank?.new_id} (${rank?.new_name}) from=${from}`,
         );
         // TODO: remove role if needed
         break;
@@ -320,7 +320,7 @@ app.post("/api/orderUpdated", rawJsonRank, async (req, res) => {
       return res.status(200).json({ ok: true });
     }
     const pedido = payload.line_items.map((item) => `${item.name} x${item.quantity}`).join(", ");
-    const enlace = `https://mento.gg/wp-admin/post.php?post=${payload.id}&action=edit`;
+    const enlace = `https://mentopoker.com/wp-admin/post.php?post=${payload.id}&action=edit`;
     //La primera linea del mensaje serán 10 emojis de dinero 💰💰💰💰💰💰💰💰💰💰
     // Tabulación a partir de la segunda línea
     const mensaje = `💰💰💰💰💰💰💰💰💰💰\n\nNuevo pedido recibido:\n\t\tCliente: ${cliente} \n\t\tEmail: ${email}\n\t\tDiscord: ${userDiscord}\n\t\tMétodo de pago: ${metodoPago}\n\t\tPedido: ${pedido}\n\t\tEnlace al pedido: ${enlace}\n\n`;

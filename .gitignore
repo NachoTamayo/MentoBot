@@ -7,3 +7,6 @@ roles.js
 gamification
 shared
 *.log
+.claude
+.DS_Store
+.mcp.json
