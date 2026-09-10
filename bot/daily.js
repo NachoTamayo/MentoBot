@@ -18,32 +18,29 @@ const {
   botID,
 } = require("../config/config.json");
 
-//Database IDs for roles
-const CONST_ROLE_NAMES = {};
-
-const roleMappings = {
-  cashElite: [9, 20, 21, 48, 49, 50],
-  cashPro: [8, 18, 19, 45, 46, 47],
-  cashBasic: [7, 17, 16, 42, 43, 44],
-  spinElite: [3, 14, 15, 39, 40, 41],
-  spinPro: [2, 13, 12, 36, 37, 38],
-  spinBasic: [1, 10, 11, 33, 34, 35],
-  torneosBasic: [4, 22, 23, 51, 52, 53, 54],
-  torneosPro: [5, 24, 25, 55, 56, 57],
-  torneosElite: [27, 28, 29, 30, 31, 32],
-  pLOBasic: [61, 62, 63],
-  pLOPro: [58, 59, 60],
-  totalBasic: [69, 70, 71],
-  totalPro: [67, 68, 72],
-  totalElite: [64, 65, 66],
+// V4 plan slug -> Discord role IDs. [] means no confirmed role ID yet (TBD).
+const planRoleMap = {
+  "cash-basic": [roles.cashBasic],
+  "cash-pro": [roles.cashPro],
+  "cash-elite": [roles.cashElite],
+  "spins-basic": [roles.spinBasic],
+  "spins-pro": [roles.spinPro],
+  "spins-elite": [roles.spinElite],
+  "torneos-basic": [roles.torneosBasic],
+  "torneos-pro": [roles.torneosPro],
+  "torneos-elite": [roles.torneosElite],
+  "plo-basic": [roles.pLOBasic],
+  "plo-pro": [roles.pLOPro],
+  // No "plo-elite" plan exists — PLO only has Basic/Pro tiers.
+  // cash+spin+torneos+plo at matching tier; PLO has no elite tier, so Elite reuses pLOPro.
+  "mento-total-basic": [roles.cashBasic, roles.spinBasic, roles.torneosBasic, roles.pLOBasic],
+  "mento-total-pro": [roles.cashPro, roles.spinPro, roles.torneosPro, roles.pLOPro],
+  "mento-total-elite": [roles.cashElite, roles.spinElite, roles.torneosElite, roles.pLOPro],
+  "mento-free": [], // Intentionally empty — free plan has no Discord group access
 };
 
-for (const roleName in roleMappings) {
-  const roleIDs = roleMappings[roleName];
-  for (const roleID of roleIDs) {
-    CONST_ROLE_NAMES[roleID] = roles[roleName];
-  }
-}
+// Only roles !sub knows about via planRoleMap are ever added/removed by it.
+const managedRoleIds = Array.from(new Set(Object.values(planRoleMap).flat()));
 
 const fs = require("fs");
 const path = require("path");
@@ -67,6 +64,7 @@ function log(message) {
 
 const mysql = require("mysql");
 const { RequestManager } = require("@discordjs/rest");
+const { linkEmail, getAccess } = require("./v4Client");
 
 const client = new Client({
   intents: [
@@ -104,25 +102,6 @@ function isEmailValid(email) {
     return false;
 
   return true;
-}
-
-function quitarRolesAnuncios(guild, member) {
-  for (roleId in roles) {
-    const role = guild.roles.cache.find((role) => role.id === roleId);
-    if (role) {
-      member.roles.remove(role);
-    }
-  }
-}
-
-//Este método solo quita roles de suscripción, nada más
-function quitarRoles(guild, member) {
-  for (roleName in roles) {
-    const role = guild.roles.cache.find((role) => role.name === roleName);
-    if (role && member.roles.cache.some((memberRole) => memberRole.name === roleName)) {
-      member.roles.remove(role);
-    }
-  }
 }
 
 function createQuery(query, callback) {
@@ -223,50 +202,42 @@ async function emailFunction(message) {
     await user.send("Los scammers han vuelto, esta vez han usado una cuenta con el ID: ${message.author.id}");
   }
 
-  // Comprobar si el usuario ya tiene su usuario de Discord en la base de datos
-  createQuery(
-    `SELECT * FROM ${userTable} WHERE discord="${message.author.id}" OR (user_email="${emailToValidate}" && discord is not null)`,
-    function (res) {
-      if (res.length > 0) {
-        message.author
-          .send("Tu usuario de Discord ya estaba asociado a un mail en nuestra base de datos.")
-          .catch(console.error);
-      } else {
-        // Si no hay registro para ese usuario, buscar si ese mail existe en la base de datos
-        createQuery(`SELECT * FROM ${userTable} WHERE user_email="${emailToValidate}"`, function (res) {
-          if (res.length == 0) {
-            message.author
-              .send(
-                "El email que me has dado no existe en nuestra base de datos. Asegúrate de haberlo escrito bien y vuelve a probar. Recuerda que tiene que ser con el mail que te registraste."
-              )
-              .catch(console.error);
-          } else {
-            // Hacer el update
-            createQuery(
-              `UPDATE ${userTable} SET discord="${message.author.id}" WHERE user_email="${emailToValidate}"`,
-              function (res) {
-                if (res.changedRows) {
-                  message.author
-                    .send(
-                      `Se ha asociado el email ${emailToValidate} con tu usuario.\r\n\r\n Muchas gracias :partying_face:`
-                    )
-                    .catch(console.error);
-                } else {
-                  message.author
-                    .send(
-                      `Algo en mis sistemas ha fallado :weary:\r\n\r\nSi necesitas ayuda usa el canal '${message.guild.channels.cache
-                        .get(soporteChannelID)
-                        .toString()}' de nuestro Discord.`
-                    )
-                    .catch(console.error);
-                }
-              }
-            );
-          }
-        });
-      }
-    }
-  );
+  const result = await linkEmail(message.author.id, emailToValidate);
+
+  if (result.ok) {
+    message.author
+      .send(
+        `Se ha asociado el email ${emailToValidate} con tu usuario.\r\n\r\nYa puedes usar **!sub** para conseguir tus roles.\r\n\r\nMuchas gracias :partying_face:`
+      )
+      .catch(console.error);
+  } else if (result.status === 404) {
+    message.author
+      .send(
+        "El email que me has dado no existe en nuestra base de datos. Asegúrate de haberlo escrito bien y vuelve a probar. Recuerda que tiene que ser con el mail que te registraste."
+      )
+      .catch(console.error);
+  } else if (result.status === 409) {
+    message.author
+      .send(
+        `Ese email ya está vinculado a otra cuenta de Discord. Si crees que es un error contacta con Soporte en '${message.guild.channels.cache
+          .get(soporteChannelID)
+          .toString()}'.`
+      )
+      .catch(console.error);
+  } else if (result.status === 400) {
+    message.author
+      .send("El email que me has dado no es válido. Revísalo y vuelve a probar.")
+      .catch(console.error);
+  } else {
+    log(`!email fallback discordUserId=${message.author.id} status=${result.status} code=${result.code}`);
+    message.author
+      .send(
+        `Algo en mis sistemas ha fallado :weary:\r\n\r\nSi necesitas ayuda usa el canal '${message.guild.channels.cache
+          .get(soporteChannelID)
+          .toString()}' de nuestro Discord.`
+      )
+      .catch(console.error);
+  }
 }
 
 //FUNCIONES GENERALES
@@ -286,7 +257,6 @@ function transformarString(inputString) {
 
 client.on("messageCreate", async (message) => {
   if (message.author.id == botID) return;
-  let guild = client.guilds.cache.get(guildId);
 
   if (message.channel.id == soporteChannelID) {
     //ID de Elmo
@@ -354,96 +324,94 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
         emailFunction(message);
         message.delete();
       } else if (message.content.toLowerCase().startsWith("!sub")) {
-        createQuery(
-          `SELECT m.object_id, m.status from ${userTable} u, ${membershipTable} m where u.ID = m.user_id and u.discord ="${message.author.id}"`,
-          function (res) {
-            if (res.length == 0) {
-              message.reply(
-                "No hay registro de que tu usuario de Discord tenga perfil en la escuela. ¿Quizás es que no lo has validado con tu mail? Usa el comando **!email** para incorporarlo a la web :wink:"
-              );
-            } else {
-              var subActiva = false;
-              quitarRoles(guild, message.member);
-              quitarRolesAnuncios(guild, message.member);
-              for (var i = 0; i < res.length; i++) {
-                //Ambas subscripciones están activas
-                if (res[i].status == "active" || res[i].status == "cancelled") {
-                  subActiva = true;
-                  const object_id = res[i].object_id;
+        const result = await getAccess(message.author.id);
+        const accessStatus = result.ok ? result.data.status : "unavailable";
 
-                  const roleName = CONST_ROLE_NAMES[object_id];
-                  if (object_id > 63 && object_id < 73) {
-                    var role = guild.roles.cache.find((role) => role.id === roleName);
-                    let tier = "";
-                    switch (object_id) {
-                      case 69:
-                      case 70:
-                      case 71:
-                        message.member.roles.add("825664157998514176");
-                        message.member.roles.add("825664144324952104");
-                        message.member.roles.add("825664164512923659");
-                        tier = "Basic";
-                        break;
-                      case 67:
-                      case 68:
-                      case 72:
-                        message.member.roles.add("825664160141672458");
-                        message.member.roles.add("825664152508563456");
-                        message.member.roles.add("825664166945620039");
-                        message.member.roles.add("1190616657232658483");
-                        tier = "Pro";
-                        break;
-                      case 64:
-                      case 65:
-                      case 66:
-                        message.member.roles.add("825664162575024172");
-                        message.member.roles.add("825664154475036683");
-                        message.member.roles.add("1064895184992743424");
-                        message.member.roles.add("1190616803676782603");
-                        tier = "Elite";
-                        break;
-                    }
-                    message.reply(
-                      "Wow! ¡Alguien con Sub Total!... Eso no se ve todos los días. Se te ha incluido en los diferentes grupos de " +
-                        tier +
-                        ". ¡Felicidades!"
-                    );
-                  } else if (roleName) {
-                    if (!message.member.roles.cache.some((role) => role.id === roleName)) {
-                      var role = guild.roles.cache.find((role) => role.id === roleName);
-                      message.member.roles.add(role);
-                      message.reply(
-                        "Se te ha incluido en el grupo de " +
-                          transformarString(getKeyByValue(roles, roleName)) +
-                          ". ¡Felicidades!"
-                      );
-                    } else {
-                      message.reply(
-                        "Está todo correcto. Sigues perteneciendo al grupo de " +
-                          transformarString(getKeyByValue(roles, roleName)) +
-                          ". Si es incorrecto deberías contactar con Soporte en " +
-                          message.guild.channels.cache.get(soporteChannelID).toString()
-                      );
-                    }
-                  } else if (res.length == 1) {
-                    message.reply(
-                      "Con la suscripción gratuita no puedes tener acceso a los grupos de Discord. Te animo a que te suscribas a Basic/Pro/Élite para descubrir la de cosas que hacemos en MentoPoker :)."
-                    );
-                  }
-                }
-              }
+        if (!result.ok) {
+          log(
+            `!sub call failed discordUserId=${message.author.id} status=${result.status ?? "n/a"} code=${
+              result.code ?? "n/a"
+            }`
+          );
+        }
 
-              if (!subActiva) {
-                var msjjj =
-                  "Tu suscripción aparentemente no está activa. Puede ser debido a la migración de la web. Si crees que es un error, deja el siguiente mensaje en el grupo " +
-                  message.guild.channels.cache.get(soporteChannelID).toString() +
-                  ": \r\n\r\n";
-                msjjj += "--> No me reconoce la suscripción como activa + *escribe tu mail aquí*";
-                message.reply(msjjj);
-              }
+        if (accessStatus === "unlinked") {
+          message.reply(
+            "No hay registro de que tu usuario de Discord tenga perfil en la escuela. ¿Quizás es que no lo has validado con tu mail? Usa el comando **!email** para incorporarlo a la web :wink:"
+          );
+        } else if (accessStatus === "inactive") {
+          for (const roleId of managedRoleIds) {
+            if (message.member.roles.cache.has(roleId)) {
+              message.member.roles.remove(roleId);
             }
           }
-        );
+          message.reply(
+            "Tu suscripción aparentemente no está activa. Si crees que es un error, deja el siguiente mensaje en el grupo " +
+              message.guild.channels.cache.get(soporteChannelID).toString() +
+              ": \r\n\r\n--> No me reconoce la suscripción como activa + *escribe tu mail aquí*"
+          );
+        } else if (accessStatus === "active") {
+          const planSlugs = result.data.planSlugs || [];
+          const targetRoleIds = new Set();
+          const unknownSlugs = [];
+          let hasFreePlan = false;
+
+          for (const slug of planSlugs) {
+            const mappedRoleIds = planRoleMap[slug];
+            if (mappedRoleIds && mappedRoleIds.length > 0) {
+              mappedRoleIds.forEach((roleId) => targetRoleIds.add(roleId));
+            } else if (slug === "mento-free") {
+              hasFreePlan = true;
+            } else {
+              unknownSlugs.push(slug);
+            }
+          }
+
+          if (unknownSlugs.length > 0) {
+            log(`!sub unknown plan slug(s) discordUserId=${message.author.id} slugs=${unknownSlugs.join(",")}`);
+          }
+
+          if (targetRoleIds.size === 0 && unknownSlugs.length === 0 && hasFreePlan) {
+            message.reply(
+              "Con la suscripción gratuita de MentoPoker no tienes derecho a los roles de la escuela que dan acceso a los canales privados, pero te invitamos a suscribirte para descubrirlos :wink:"
+            );
+          } else if (targetRoleIds.size === 0) {
+            log(
+              `!sub unresolved active plan discordUserId=${message.author.id} planSlugs=${JSON.stringify(planSlugs)}`
+            );
+            message.reply(
+              "Tu suscripción está activa pero no he podido resolver tu plan. Contacta con Soporte en " +
+                message.guild.channels.cache.get(soporteChannelID).toString()
+            );
+          } else {
+            const grantedNames = [];
+            for (const roleId of targetRoleIds) {
+              if (!message.member.roles.cache.has(roleId)) {
+                message.member.roles.add(roleId);
+              }
+              const roleName = getKeyByValue(roles, roleId);
+              if (roleName) grantedNames.push(transformarString(roleName));
+            }
+
+            for (const roleId of managedRoleIds) {
+              if (message.member.roles.cache.has(roleId) && !targetRoleIds.has(roleId)) {
+                message.member.roles.remove(roleId);
+              }
+            }
+
+            message.reply(
+              "Está todo correcto. Perteneces al grupo de " +
+                grantedNames.join(", ") +
+                ". ¡Felicidades! Si es incorrecto deberías contactar con Soporte en " +
+                message.guild.channels.cache.get(soporteChannelID).toString()
+            );
+          }
+        } else {
+          message.reply(
+            "No he podido comprobar tu acceso ahora mismo. Inténtalo de nuevo en unos minutos, y si el problema persiste contacta con Soporte en " +
+              message.guild.channels.cache.get(soporteChannelID).toString()
+          );
+        }
       } else if (message.content.startsWith("!")) {
         var msj = "¿Has utilizado ya el comando !email? Si no es así:\r\n\r\n";
         msj += "**!email** *tu mail aquí* para validar tu mail.\r\n";
