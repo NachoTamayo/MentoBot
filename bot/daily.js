@@ -255,6 +255,28 @@ function transformarString(inputString) {
   return result;
 }
 
+// Discord role add/remove can reject (missing permissions, role hierarchy, rate
+// limits...); an unawaited rejection here would crash the whole bot process.
+async function addRoleSafe(member, roleId) {
+  try {
+    await member.roles.add(roleId);
+    return true;
+  } catch (err) {
+    log(`role add failed discordUserId=${member.id} roleId=${roleId} error=${err.message}`);
+    return false;
+  }
+}
+
+async function removeRoleSafe(member, roleId) {
+  try {
+    await member.roles.remove(roleId);
+    return true;
+  } catch (err) {
+    log(`role remove failed discordUserId=${member.id} roleId=${roleId} error=${err.message}`);
+    return false;
+  }
+}
+
 client.on("messageCreate", async (message) => {
   if (message.author.id == botID) return;
 
@@ -342,7 +364,7 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
         } else if (accessStatus === "inactive") {
           for (const roleId of managedRoleIds) {
             if (message.member.roles.cache.has(roleId)) {
-              message.member.roles.remove(roleId);
+              await removeRoleSafe(message.member, roleId);
             }
           }
           message.reply(
@@ -372,6 +394,11 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
           }
 
           if (targetRoleIds.size === 0 && unknownSlugs.length === 0 && hasFreePlan) {
+            for (const roleId of managedRoleIds) {
+              if (message.member.roles.cache.has(roleId)) {
+                await removeRoleSafe(message.member, roleId);
+              }
+            }
             message.reply(
               "Con la suscripción gratuita de MentoPoker no tienes derecho a los roles de la escuela que dan acceso a los canales privados, pero te invitamos a suscribirte para descubrirlos :wink:"
             );
@@ -385,9 +412,14 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
             );
           } else {
             const grantedNames = [];
+            const failedRoleIds = [];
             for (const roleId of targetRoleIds) {
               if (!message.member.roles.cache.has(roleId)) {
-                message.member.roles.add(roleId);
+                const added = await addRoleSafe(message.member, roleId);
+                if (!added) {
+                  failedRoleIds.push(roleId);
+                  continue;
+                }
               }
               const roleName = getKeyByValue(roles, roleId);
               if (roleName) grantedNames.push(transformarString(roleName));
@@ -395,16 +427,28 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
 
             for (const roleId of managedRoleIds) {
               if (message.member.roles.cache.has(roleId) && !targetRoleIds.has(roleId)) {
-                message.member.roles.remove(roleId);
+                await removeRoleSafe(message.member, roleId);
               }
             }
 
-            message.reply(
-              "Está todo correcto. Perteneces al grupo de " +
-                grantedNames.join(", ") +
-                ". ¡Felicidades! Si es incorrecto deberías contactar con Soporte en " +
-                message.guild.channels.cache.get(soporteChannelID).toString()
-            );
+            if (failedRoleIds.length > 0) {
+              log(
+                `!sub role grant failed discordUserId=${message.author.id} roleIds=${failedRoleIds.join(",")}`
+              );
+              message.reply(
+                "He podido asignarte " +
+                  (grantedNames.length ? "parte de tus roles (" + grantedNames.join(", ") + ")" : "ninguno de tus roles") +
+                  ", pero algo ha fallado al aplicar otros. Contacta con Soporte en " +
+                  message.guild.channels.cache.get(soporteChannelID).toString()
+              );
+            } else {
+              message.reply(
+                "Está todo correcto. Perteneces al grupo de " +
+                  grantedNames.join(", ") +
+                  ". ¡Felicidades! Si es incorrecto deberías contactar con Soporte en " +
+                  message.guild.channels.cache.get(soporteChannelID).toString()
+              );
+            }
           }
         } else {
           message.reply(
