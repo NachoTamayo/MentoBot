@@ -34,24 +34,25 @@ git — confirmed with `git ls-files`) gains two fields:
 
 ```json
 {
-  "v4Origin": "https://<v4 deployment origin>",
+  "v4ApiBase": "https://v4.mentopoker.com/api/integrations/discord/v1",
   "v4ApiKey": "<MENTOBOT_API_KEY, 32+ random bytes, shared secret>"
 }
 ```
 
-The actual key value is set directly in the local `config/config.json` on
-Nacho's machine / the deploy target — never written into this spec, never
-logged, never committed.
+`v4ApiBase` is the full API base (origin + versioned path prefix), confirmed
+by Nacho. The actual key value is set directly in the local
+`config/config.json` on Nacho's machine / the deploy target — never written
+into this spec, never logged, never committed.
 
 ## New module: `bot/v4Client.js`
 
 Thin axios wrapper, no new dependency (axios is already in `package.json`).
 
-- `linkEmail(discordUserId, email)` → `POST {v4Origin}/api/integrations/discord/v1/link`
-  with body `{ email, discordUserId }`.
-- `getAccess(discordUserId)` → `GET {v4Origin}/api/integrations/discord/v1/access/{discordUserId}`.
+- `linkEmail(discordUserId, email)` → `POST {v4ApiBase}/link` with body
+  `{ email, discordUserId }`.
+- `getAccess(discordUserId)` → `GET {v4ApiBase}/access/{discordUserId}`.
 - Both requests: `Authorization: Bearer <v4ApiKey>`, JSON, `timeout: 10000`,
-  `maxRedirects: 0`. `v4Origin` is validated to start with `https://` at
+  `maxRedirects: 0`. `v4ApiBase` is validated to start with `https://` at
   startup (throw if not — fail loud rather than silently downgrade to HTTP).
 - Both functions resolve to `{ ok: true, data }` on 2xx or
   `{ ok: false, status, code }` otherwise (HTTP error response, network error,
