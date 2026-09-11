@@ -19,23 +19,27 @@ const {
 } = require("../config/config.json");
 
 // V4 plan slug -> Discord role IDs. [] means no confirmed role ID yet (TBD).
+//
+// The old third-tier "Elite" roles (roles.cashElite/spinElite/torneosElite) were
+// deleted from Discord; the role formerly named "Pro" was renamed to "Élite" and
+// kept its ID (roles.cashPro/spinPro/torneosPro). So -elite plan slugs reuse the
+// same role as -pro, same pattern already used for plo-elite/pLOPro.
 const planRoleMap = {
   "cash-basic": [roles.cashBasic],
   "cash-pro": [roles.cashPro],
-  "cash-elite": [roles.cashElite],
+  "cash-elite": [roles.cashPro],
   "spins-basic": [roles.spinBasic],
   "spins-pro": [roles.spinPro],
-  "spins-elite": [roles.spinElite],
+  "spins-elite": [roles.spinPro],
   "torneos-basic": [roles.torneosBasic],
   "torneos-pro": [roles.torneosPro],
-  "torneos-elite": [roles.torneosElite],
+  "torneos-elite": [roles.torneosPro],
   "plo-basic": [roles.pLOBasic],
   "plo-pro": [roles.pLOPro],
   // No "plo-elite" plan exists — PLO only has Basic/Pro tiers.
-  // cash+spin+torneos+plo at matching tier; PLO has no elite tier, so Elite reuses pLOPro.
   "mento-total-basic": [roles.cashBasic, roles.spinBasic, roles.torneosBasic, roles.pLOBasic],
   "mento-total-pro": [roles.cashPro, roles.spinPro, roles.torneosPro, roles.pLOPro],
-  "mento-total-elite": [roles.cashElite, roles.spinElite, roles.torneosElite, roles.pLOPro],
+  "mento-total-elite": [roles.cashPro, roles.spinPro, roles.torneosPro, roles.pLOPro],
   "mento-free": [], // Intentionally empty — free plan has no Discord group access
 };
 
