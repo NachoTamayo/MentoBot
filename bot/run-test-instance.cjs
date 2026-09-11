@@ -50,4 +50,11 @@ if (!fs.existsSync(entryPath)) {
 }
 
 console.log(`Instancia de PRUEBAS: cargando ${entryFile} con config/config.test.json (no se toca config.json real).`);
-require(entryPath);
+const moduleExports = require(entryPath);
+
+// If the module exports a start function, call it explicitly.
+// This is needed for modules like roleSync.js that don't auto-start on require(),
+// unlike daily.js which calls client.login() as a side effect of loading.
+if (moduleExports && typeof moduleExports.start === "function") {
+  moduleExports.start();
+}
