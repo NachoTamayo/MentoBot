@@ -59,4 +59,17 @@ async function getAccess(discordUserId) {
   }
 }
 
-module.exports = { linkEmail, getAccess };
+async function getAccessBatch(discordUserIds) {
+  const path = "/access/batch";
+  try {
+    const response = await client.post(path, { discordUserIds });
+    logCall("POST", path, `batch(${discordUserIds.length})`, response.status, null);
+    return { ok: true, data: response.data };
+  } catch (err) {
+    const result = normalizeError(err);
+    logCall("POST", path, `batch(${discordUserIds.length})`, result.status, result.code);
+    return result;
+  }
+}
+
+module.exports = { linkEmail, getAccess, getAccessBatch };
