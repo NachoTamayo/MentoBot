@@ -145,7 +145,7 @@ function getKeyByValue(object, value) {
   return null; // Retorna null si no se encuentra el valor en el objeto
 }
 
-function desasignarRoles(member, guild, subCaducada, idSub) {
+async function desasignarRoles(member, guild, subCaducada, idSub) {
   const rolesConditions = {
     [roles.cashBasic]: [7, 17, 16, 42, 43, 44],
     [roles.cashPro]: [8, 18, 19, 45, 46, 47],
@@ -166,15 +166,16 @@ function desasignarRoles(member, guild, subCaducada, idSub) {
   for (const [role, conditions] of Object.entries(rolesConditions)) {
     if (member.roles.cache.has(role) && conditions.includes(subCaducada)) {
       log(`El usuario ${member.user.username} tiene rol ${role}`);
-      member.roles.remove(role);
-      createQuery(`UPDATE ${membershipTable} SET checked = 1 where id = ${idSub}`, () => {
-        const anunciosRole = roles[getKeyByValue(roles, role) + "Anuncios"];
-        log(`El usuario ${member.user.username} tiene rol ${anunciosRole}`);
-        if (!member.roles.cache.has(anunciosRole)) {
-          log(`Le ponemos Rol ${anunciosRole}`);
-          member.roles.add(anunciosRole);
-        }
+      await removeRoleSafe(member, role);
+      await new Promise((resolve) => {
+        createQuery(`UPDATE ${membershipTable} SET checked = 1 where id = ${idSub}`, () => resolve());
       });
+      const anunciosRole = roles[getKeyByValue(roles, role) + "Anuncios"];
+      log(`El usuario ${member.user.username} tiene rol ${anunciosRole}`);
+      if (anunciosRole && !member.roles.cache.has(anunciosRole)) {
+        log(`Le ponemos Rol ${anunciosRole}`);
+        await addRoleSafe(member, anunciosRole);
+      }
     }
   }
 }
@@ -540,7 +541,7 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
 async function getPlayer(id, subCaducada, idSub) {
   let server = client.guilds.cache.get(guildId);
   let player = await server.members.fetch(id);
-  desasignarRoles(player, server, subCaducada, idSub);
+  await desasignarRoles(player, server, subCaducada, idSub);
 }
 
 client.once("ready", () => {
@@ -569,13 +570,13 @@ client.once("ready", () => {
             idSub = response[i].id;
 
             const list = client.guilds.cache.get(guildId);
-            await list.members.fetch().then((members) => {
+            await list.members.fetch().then(async (members) => {
               let member = members.find((u) => u.user.id === tagUser);
 
               if (member === undefined) {
                 member = members.find((u) => u.user.username + "#" + u.user.discriminator === tagUser);
               }
-              if (member != undefined) getPlayer(member.user.id, subCaducada, idSub);
+              if (member != undefined) await getPlayer(member.user.id, subCaducada, idSub);
             });
             //Nos aseguramos de que se pone como procesado aunque no haya tenido rol alguno
             createQuery(`UPDATE ${membershipTable} SET checked = 1 where id = ${idSub}`, () => {
