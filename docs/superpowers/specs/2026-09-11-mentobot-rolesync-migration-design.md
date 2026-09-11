@@ -166,10 +166,16 @@ stale duplicate config file that this change retires).
    4. This order (remove, then add, per member, before moving to the next
       member) is deliberate — confirmed by Nacho to avoid a member briefly
       holding both an old and a new tier role.
-   - `active` with an empty resolved wanted set (all slugs unknown, or
-     `planSlugs` empty) is treated as preserve + log, same as `!sub`'s
-     "can't resolve plan" branch — the sweep never strips roles just
-     because it couldn't map anything.
+   - `active` with a resolved wanted set of size 0 splits into the same two
+     cases `!sub` distinguishes: if every slug was either mapped-but-empty
+     (`mento-free`) or absent, with **no unrecognized slug** in the mix,
+     treat it like `inactive` — wanted = `[]`, so `remove` strips every
+     managed role the member currently holds (a downgrade to free must
+     actually revoke paid roles, not just leave them until the member runs
+     `!sub` themselves). If instead there is at least one slug that isn't a
+     known key in `planRoleMap` at all, that's "can't resolve" — preserve,
+     don't remove anything, and log the unknown slug(s)
+     (`roleSync unknown plan slug discordUserId=... slug=...`).
 6. No direct MySQL access anywhere in this file.
 
 ### Dry-run mode
