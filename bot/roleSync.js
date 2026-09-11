@@ -130,6 +130,7 @@ function log(message) {
 
 const { addRoleSafe, removeRoleSafe } = createRoleHelpers(log);
 const BATCH_SIZE = 100;
+let sweeping = false;
 
 async function reconcileMember(member, access) {
   const report = computeReconcile(access, [...member.roles.cache.keys()]);
@@ -146,6 +147,8 @@ async function reconcileMember(member, access) {
     );
     return report;
   }
+  // Remove before add, per member: a member must never briefly hold both an
+  // old and a new tier role at once (confirmed requirement — do not reorder).
   for (const roleId of report.remove) {
     await removeRoleSafe(member, roleId);
   }
@@ -179,14 +182,27 @@ async function syncChunk(members) {
 }
 
 async function sweep(guild) {
-  const members = await guild.members.fetch();
-  const humans = [...members.values()].filter((m) => !m.user.bot);
-  const chunks = chunk(humans, BATCH_SIZE);
-  log(`roleSync sweep starting members=${humans.length} chunks=${chunks.length} dryRun=${dryRunRoleSync !== false}`);
-  for (const c of chunks) {
-    await syncChunk(c);
+  if (sweeping) {
+    log("roleSync sweep skipped: previous sweep still running");
+    return;
   }
-  log("roleSync sweep completed");
+  if (!guild) {
+    log("roleSync sweep skipped: guild not found (check guildId in config)");
+    return;
+  }
+  sweeping = true;
+  try {
+    const members = await guild.members.fetch();
+    const humans = [...members.values()].filter((m) => !m.user.bot);
+    const chunks = chunk(humans, BATCH_SIZE);
+    log(`roleSync sweep starting members=${humans.length} chunks=${chunks.length} dryRun=${dryRunRoleSync !== false}`);
+    for (const c of chunks) {
+      await syncChunk(c);
+    }
+    log("roleSync sweep completed");
+  } finally {
+    sweeping = false;
+  }
 }
 
 function start() {
@@ -197,7 +213,7 @@ function start() {
     const guild = client.guilds.cache.get(guildId);
     sweep(guild).catch((err) => log(`roleSync sweep failed error=${err.message}`));
     new CronJob(
-      "0 */2 * * *",
+      "30 */2 * * *",
       () => {
         sweep(guild).catch((err) => log(`roleSync sweep failed error=${err.message}`));
       },
@@ -207,7 +223,7 @@ function start() {
     );
   });
 
-  client.login(token);
+  client.login(token).catch((err) => log(`roleSync login failed error=${err.message}`));
 }
 
 module.exports = { chunk, validateBatchItems, computeReconcile, reconcileMember, syncChunk, sweep, start };

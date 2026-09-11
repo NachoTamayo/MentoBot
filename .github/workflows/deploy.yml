@@ -21,5 +21,6 @@ jobs:
             git fetch origin
             git reset --hard origin/master
             npm install --production
-            pm2 restart MentoBot MentoAPI removeRoles addRoles roleSync
+            pm2 restart MentoBot MentoAPI removeRoles addRoles
+            pm2 describe roleSync > /dev/null 2>&1 && pm2 restart roleSync || pm2 start bot/roleSync.js --name roleSync
             pm2 save
