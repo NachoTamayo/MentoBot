@@ -1,3 +1,10 @@
+const { Client, GatewayIntentBits } = require("discord.js");
+const CronJob = require("cron").CronJob;
+const fs = require("fs");
+const path = require("path");
+const { guildId, token, dryRunRoleSync } = require("../config/config.json");
+const { createRoleHelpers } = require("./roleHelpers");
+const { getAccessBatch } = require("./v4Client");
 const { planRoleMap, managedRoleIds } = require("./planRoleMap");
 
 const VALID_STATUSES = ["unlinked", "inactive", "active", "unavailable"];
@@ -107,4 +114,104 @@ function computeReconcile(access, currentRoleIds) {
   };
 }
 
-module.exports = { chunk, validateBatchItems, computeReconcile };
+const logFilePath = path.join(__dirname, "roleSync.log");
+
+function log(message) {
+  const now = new Date();
+  const timestamp = `[${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+    now.getDate()
+  ).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(
+    now.getSeconds()
+  ).padStart(2, "0")}]`;
+  fs.appendFile(logFilePath, `${timestamp} ${message}\n`, (err) => {
+    if (err) console.error("Error al escribir en log:", err);
+  });
+}
+
+const { addRoleSafe, removeRoleSafe } = createRoleHelpers(log);
+const BATCH_SIZE = 100;
+
+async function reconcileMember(member, access) {
+  const report = computeReconcile(access, [...member.roles.cache.keys()]);
+  if (report.unknownSlugs.length > 0) {
+    log(`roleSync unknown plan slug discordUserId=${member.id} slugs=${report.unknownSlugs.join(",")}`);
+  }
+  if (report.decision === "preserve") {
+    return report;
+  }
+  const isDryRun = dryRunRoleSync !== false;
+  if (isDryRun) {
+    log(
+      `roleSync dry-run discordUserId=${member.id} add=${report.add.join(",")} remove=${report.remove.join(",")}`
+    );
+    return report;
+  }
+  for (const roleId of report.remove) {
+    await removeRoleSafe(member, roleId);
+  }
+  for (const roleId of report.add) {
+    await addRoleSafe(member, roleId);
+  }
+  return report;
+}
+
+async function syncChunk(members) {
+  const ids = members.map((m) => m.id);
+  const result = await getAccessBatch(ids);
+  if (!result.ok) {
+    log(
+      `roleSync batch call failed size=${ids.length} status=${result.status ?? "n/a"} code=${result.code ?? "n/a"}`
+    );
+    return;
+  }
+  const validated = validateBatchItems(result.data.items, ids);
+  if (!validated.ok) {
+    log(`roleSync batch invalid size=${ids.length} reason=${validated.reason}`);
+    return;
+  }
+  for (const member of members) {
+    try {
+      await reconcileMember(member, validated.byId.get(member.id));
+    } catch (err) {
+      log(`roleSync member sync failed discordUserId=${member.id} error=${err.message}`);
+    }
+  }
+}
+
+async function sweep(guild) {
+  const members = await guild.members.fetch();
+  const humans = [...members.values()].filter((m) => !m.user.bot);
+  const chunks = chunk(humans, BATCH_SIZE);
+  log(`roleSync sweep starting members=${humans.length} chunks=${chunks.length} dryRun=${dryRunRoleSync !== false}`);
+  for (const c of chunks) {
+    await syncChunk(c);
+  }
+  log("roleSync sweep completed");
+}
+
+function start() {
+  const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
+
+  client.once("ready", () => {
+    log("Ready!");
+    const guild = client.guilds.cache.get(guildId);
+    sweep(guild).catch((err) => log(`roleSync sweep failed error=${err.message}`));
+    new CronJob(
+      "0 */2 * * *",
+      () => {
+        sweep(guild).catch((err) => log(`roleSync sweep failed error=${err.message}`));
+      },
+      null,
+      true,
+      "Europe/Madrid"
+    );
+  });
+
+  client.login(token);
+}
+
+module.exports = { chunk, validateBatchItems, computeReconcile, reconcileMember, syncChunk, sweep, start };
+
+if (require.main === module) {
+  start();
+}
