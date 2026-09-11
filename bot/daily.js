@@ -43,6 +43,7 @@ function log(message) {
 const mysql = require("mysql");
 const { RequestManager } = require("@discordjs/rest");
 const { linkEmail, getAccess } = require("./v4Client");
+const { createRoleHelpers } = require("./roleHelpers");
 
 const client = new Client({
   intents: [
@@ -234,27 +235,7 @@ function transformarString(inputString) {
   return result;
 }
 
-// Discord role add/remove can reject (missing permissions, role hierarchy, rate
-// limits...); an unawaited rejection here would crash the whole bot process.
-async function addRoleSafe(member, roleId) {
-  try {
-    await member.roles.add(roleId);
-    return true;
-  } catch (err) {
-    log(`role add failed discordUserId=${member.id} roleId=${roleId} error=${err.message}`);
-    return false;
-  }
-}
-
-async function removeRoleSafe(member, roleId) {
-  try {
-    await member.roles.remove(roleId);
-    return true;
-  } catch (err) {
-    log(`role remove failed discordUserId=${member.id} roleId=${roleId} error=${err.message}`);
-    return false;
-  }
-}
+const { addRoleSafe, removeRoleSafe } = createRoleHelpers(log);
 
 client.on("messageCreate", async (message) => {
   if (message.author.id == botID) return;
