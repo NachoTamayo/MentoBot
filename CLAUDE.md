@@ -49,9 +49,9 @@ The project is split into two applications that each create their own Discord cl
 
 ### Config Files
 Each app has its own `config.json`:
-- `config/config.json` — used by `bot/daily.js` (and most bot scripts via `../config/config.json`)
+- `config/config.json` — used by `bot/daily.js` and `bot/roleSync.js`
 - `api/config.json` — used by `api/api.js`
-- `bot/config.json` — used by standalone bot scripts that reference `./config.json`
+- `bot/config.json` — retired: was a stale duplicate read by `bot/purgeRoles.js`/`bot/removeRoles.js`/`bot/changeRoles.js`/`bot/bot_aux.js`, all now deleted. Nothing in the repo reads it any more; the file itself is gitignored and gets deleted by hand on the production server.
 
 The config schema includes: `token`, `clientId`, `guildId`, `webhookSecret`, `adminRole`, channel IDs, MySQL credentials, table names (`userTable`, `membershipTable`), `plans` (WooCommerce plan IDs), and `roles` (Discord role ID map).
 
