@@ -12,15 +12,14 @@ MentoBot is a Discord bot for **MentoPoker**, a poker school. It bridges the Woo
 # Install dependencies (root)
 npm install
 
-# Run the interactive bot + daily cron (main entry point)
+# Run the interactive bot (main entry point)
 node bot/daily.js
 
 # Run the webhook API server (port 3010)
 node api/api.js
 
 # Utility scripts (run manually or on a schedule)
-node bot/purgeRoles.js   # Adds roles to all active subs (runs every 2h internally)
-node bot/changeRoles.js  # One-time: adds "anuncios" role to members with only @everyone
+node bot/roleSync.js     # V4-backed role sync for the whole guild (runs every 2h internally)
 node bot/support.js      # Daily: nudges stale support tickets (>3 days inactive)
 ```
 
@@ -35,10 +34,9 @@ cd docker && docker compose up -d
 
 The project is split into two applications that each create their own Discord client and connect independently:
 
-### `bot/daily.js` — Interactive Bot + Nightly Cron
+### `bot/daily.js` — Interactive Bot
 - Listens for messages in specific Discord channels (`permisosChannelID`, `soporteChannelID`, deals channel `1104058780645335171`)
 - Commands: `!email <email>` links a user's email to their Discord ID in MySQL; `!sub` assigns Discord roles based on active WooCommerce memberships
-- Nightly cron at `02:00 Europe/Madrid`: queries expired/unchecked memberships and removes the corresponding Discord roles, then marks them `checked = 1`
 - Reads config from `../config/config.json`
 
 ### `api/api.js` — Webhook Server (Express + Discord)
@@ -58,20 +56,14 @@ Each app has its own `config.json`:
 The config schema includes: `token`, `clientId`, `guildId`, `webhookSecret`, `adminRole`, channel IDs, MySQL credentials, table names (`userTable`, `membershipTable`), `plans` (WooCommerce plan IDs), and `roles` (Discord role ID map).
 
 ### Database (MySQL)
-Two different table prefixes appear across scripts:
-- `naw_*` — used by `bot/daily.js` (`naw_users`, `naw_rcp_memberships`) — older RCP memberships schema
-- `ngf_*` — used by `bot/bot_aux.js` and `bot/purgeRoles.js` (`ngf_users`, `ngf_posts` with `post_type = 'wc_user_membership'`) — WooCommerce memberships schema
+- `naw_*` — still used by `bot/daily.js`'s `!subdoble` admin command (`naw_rcp_memberships`) — the only remaining MySQL read/write path in the bot; everything else resolves role/plan state from the V4 API (see `bot/v4Client.js`)
+- `ngf_*` — no longer used anywhere in this repo (was read by `bot/bot_aux.js` and `bot/purgeRoles.js`, both removed)
 
-Each query creates and closes a new MySQL connection (no connection pool). The `mysql` package (v2) is used in most files; `mysql2` is also a dependency but not yet used.
+Each query creates and closes a new MySQL connection (no connection pool). The `mysql` package (v2) is used; `mysql2` is also a dependency but not yet used.
 
 ### Subscription → Role Mapping
-WooCommerce plan IDs (numeric) map to Discord role IDs. The mapping is duplicated across multiple files:
-- `bot/daily.js`: `roleMappings` object (plan DB IDs → role key names) + `CONST_ROLE_NAMES` lookup
-- `bot/bot_aux.js`: `getDiscordRol()` switch
-- `bot/purgeRoles.js` and `bot/changeRoles.js`: `getRoles()` switch
-- `api/api.js`: `getDiscordRol()` switch (with string-to-int coercion)
-
-Key plan IDs: `8230`=cashBasic, `8185`=spinBasic, `8233`=torneosBasic, `14142`=cashPro, `8195`=spinPro, `8234`=torneosPro, `8236`=ploBasic, `8235`=ploPro, `12150`=mentoTotalBasic, `12151`=mentoTotalPro.
+- `bot/daily.js` (`!sub`) and `bot/roleSync.js` share `bot/planRoleMap.js`, keyed by V4 plan slug (e.g. `cash-pro`) — the only mapping either file uses.
+- `api/api.js` keeps its own separate `getDiscordRol()` switch, keyed by numeric WooCommerce plan IDs (with string-to-int coercion) — it does not read V4 or `planRoleMap.js`. Key plan IDs: `8230`=cashBasic, `8185`=spinBasic, `8233`=torneosBasic, `14142`=cashPro, `8195`=spinPro, `8234`=torneosPro, `8236`=ploBasic, `8235`=ploPro, `12150`=mentoTotalBasic, `12151`=mentoTotalPro.
 
 ### Shared
 - `shared/rabbit.js` — RabbitMQ connection singleton (uses env vars; not yet imported by any main script)

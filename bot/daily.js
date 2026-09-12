@@ -1,5 +1,4 @@
 const { Client, GatewayIntentBits, Partials } = require("discord.js");
-const CronJob = require("cron").CronJob;
 const {
   clientId,
   guildId,
@@ -13,8 +12,6 @@ const {
   permisosChannelID,
   soporteChannelID,
   roles,
-  userTable,
-  membershipTable,
   botID,
 } = require("../config/config.json");
 
@@ -41,7 +38,6 @@ function log(message) {
 }
 
 const mysql = require("mysql");
-const { RequestManager } = require("@discordjs/rest");
 const { linkEmail, getAccess } = require("./v4Client");
 const { createRoleHelpers } = require("./roleHelpers");
 
@@ -117,53 +113,6 @@ function getKeyByValue(object, value) {
     }
   }
   return null; // Retorna null si no se encuentra el valor en el objeto
-}
-
-async function desasignarRoles(member, guild, subCaducada, idSub) {
-  const rolesConditions = {
-    [roles.cashBasic]: [7, 17, 16, 42, 43, 44],
-    [roles.cashPro]: [8, 18, 19, 45, 46, 47],
-    [roles.cashElite]: [9, 20, 21, 48, 49, 50],
-    [roles.spinBasic]: [1, 10, 11, 33, 34, 35],
-    [roles.spinPro]: [2, 12, 13, 36, 37, 38],
-    [roles.spinElite]: [3, 14, 15, 39, 40, 41],
-    [roles.torneosBasic]: [4, 22, 23, 51, 52, 53, 54],
-    [roles.torneosPro]: [5, 24, 25, 55, 56, 57],
-    [roles.torneosElite]: [27, 28, 29, 30, 31, 32],
-    [roles.pLOBasic]: [61, 62, 63],
-    [roles.pLOPro]: [58, 59, 60],
-    [roles.totalBasic]: [69, 70, 71],
-    [roles.totalPro]: [67, 68, 72],
-    [roles.totalElite]: [64, 65, 66],
-  };
-
-  for (const [role, conditions] of Object.entries(rolesConditions)) {
-    if (member.roles.cache.has(role) && conditions.includes(subCaducada)) {
-      log(`El usuario ${member.user.username} tiene rol ${role}`);
-      await removeRoleSafe(member, role);
-      await new Promise((resolve) => {
-        createQuery(`UPDATE ${membershipTable} SET checked = 1 where id = ${idSub}`, () => resolve());
-      });
-      const anunciosRole = roles[getKeyByValue(roles, role) + "Anuncios"];
-      log(`El usuario ${member.user.username} tiene rol ${anunciosRole}`);
-      if (anunciosRole && !member.roles.cache.has(anunciosRole)) {
-        log(`Le ponemos Rol ${anunciosRole}`);
-        await addRoleSafe(member, anunciosRole);
-      }
-    }
-  }
-}
-
-function getFecha() {
-  let date_ob = new Date();
-  let date = ("0" + date_ob.getDate()).slice(-2);
-  let month = ("0" + (date_ob.getMonth() + 1)).slice(-2);
-  let year = date_ob.getFullYear();
-  let hours = date_ob.getHours();
-  let minutes = date_ob.getMinutes();
-  let seconds = date_ob.getSeconds();
-
-  log(year + "-" + month + "-" + date + " " + hours + ":" + minutes + ":" + seconds);
 }
 
 async function emailFunction(message) {
@@ -492,58 +441,8 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
   }
 });
 
-async function getPlayer(id, subCaducada, idSub) {
-  let server = client.guilds.cache.get(guildId);
-  let player = await server.members.fetch(id);
-  await desasignarRoles(player, server, subCaducada, idSub);
-}
-
 client.once("ready", () => {
   log("Ready!");
-  const list = client.guilds.cache.get(guildId);
-  //En orden de asteriscos: Segundos, minutos, horas, dias, meses, años y día de la semana
-  new CronJob(
-    "0 2 * * *",
-    function () {
-      client.guilds.cache.forEach((g) => {
-        g.roles.fetch();
-      });
-
-      getFecha();
-      //Hacemos una query para recuperar todos los usuarios con estado de sub experied en la web
-      //Necesitamos los IDs, por lo que sus tags los convertimos en IDs.
-      //SELECT u.discord, m.object_id FROM ${userTable}  AS u, ${membershipTable} AS m WHERE u.id = m.user_id AND( ( m.status IN('expired') AND m.checked IS NULL ) OR( m.status IN('active') AND m.expiration_date < CURRENT_DATE AND m.checked IS NULL ) OR( m.status IN('active') AND m.expiration_date IS NULL AND m.checked IS NULL ) ) AND u.discord IS NOT NULL AND m.object_id != 26 ORDER BY u.discord ASC;
-      createQuery(
-        `SELECT u.discord, m.object_id, m.id FROM ${userTable}  AS u, ${membershipTable} AS m WHERE u.id = m.user_id AND( ( m.status IN('expired') AND( m.checked IS NULL OR m.checked LIKE 0 ) ) OR( m.status IN('active', 'pending', 'cancelled') AND m.expiration_date < CURRENT_DATE AND( m.checked IS NULL OR m.checked LIKE 0 ) ) OR( m.status IN('active', 'pending', 'cancelled') AND m.expiration_date IS NULL AND( m.checked IS NULL OR m.checked LIKE 0 ) ) ) AND u.discord IS NOT NULL AND m.object_id != 26 ORDER BY u.discord ASC;`,
-        async function (response) {
-          let subCaducada;
-
-          for (let i = 0; i < response.length; i++) {
-            const tagUser = response[i].discord;
-            subCaducada = response[i].object_id;
-            idSub = response[i].id;
-
-            const list = client.guilds.cache.get(guildId);
-            await list.members.fetch().then(async (members) => {
-              let member = members.find((u) => u.user.id === tagUser);
-
-              if (member === undefined) {
-                member = members.find((u) => u.user.username + "#" + u.user.discriminator === tagUser);
-              }
-              if (member != undefined) await getPlayer(member.user.id, subCaducada, idSub);
-            });
-            //Nos aseguramos de que se pone como procesado aunque no haya tenido rol alguno
-            createQuery(`UPDATE ${membershipTable} SET checked = 1 where id = ${idSub}`, () => {
-              log("Usuario actualizado en tabla membership");
-            });
-          }
-        }
-      );
-    },
-    null,
-    true,
-    "Europe/Madrid"
-  );
 });
 
 client.login(token);
