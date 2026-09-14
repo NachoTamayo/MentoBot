@@ -15,7 +15,7 @@ const {
   botID,
 } = require("../config/config.json");
 
-const { planRoleMap, managedRoleIds } = require("./planRoleMap");
+const { planRoleMap, managedRoleIds, resolveRoleFamilyConflicts } = require("./planRoleMap");
 
 const fs = require("fs");
 const path = require("path");
@@ -302,6 +302,13 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
             log(`!sub unknown plan slug(s) discordUserId=${message.author.id} slugs=${unknownSlugs.join(",")}`);
           }
 
+          const { resolved: resolvedRoleIds, conflicts } = resolveRoleFamilyConflicts(targetRoleIds);
+          for (const conflict of conflicts) {
+            log(
+              `!sub role family conflict discordUserId=${message.author.id} family=${conflict.family} kept=${conflict.kept} dropped=${conflict.dropped.join(",")}`
+            );
+          }
+
           if (targetRoleIds.size === 0 && unknownSlugs.length === 0 && hasFreePlan) {
             for (const roleId of managedRoleIds) {
               if (message.member.roles.cache.has(roleId)) {
@@ -322,7 +329,7 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
           } else {
             const grantedNames = [];
             const failedRoleIds = [];
-            for (const roleId of targetRoleIds) {
+            for (const roleId of resolvedRoleIds) {
               if (!message.member.roles.cache.has(roleId)) {
                 const added = await addRoleSafe(message.member, roleId);
                 if (!added) {
@@ -335,7 +342,7 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
             }
 
             for (const roleId of managedRoleIds) {
-              if (message.member.roles.cache.has(roleId) && !targetRoleIds.has(roleId)) {
+              if (message.member.roles.cache.has(roleId) && !resolvedRoleIds.has(roleId)) {
                 await removeRoleSafe(message.member, roleId);
               }
             }

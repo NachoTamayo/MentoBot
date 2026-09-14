@@ -5,7 +5,7 @@ const path = require("path");
 const { guildId, token, dryRunRoleSync } = require("../config/config.json");
 const { createRoleHelpers } = require("./roleHelpers");
 const { getAccessBatch } = require("./v4Client");
-const { planRoleMap, managedRoleIds } = require("./planRoleMap");
+const { planRoleMap, managedRoleIds, resolveRoleFamilyConflicts } = require("./planRoleMap");
 
 const VALID_STATUSES = ["unlinked", "inactive", "active", "unavailable"];
 const MAX_CHECKED_AT_AGE_MS = 120000;
@@ -65,7 +65,7 @@ function computeReconcile(access, currentRoleIds) {
   const current = new Set(currentRoleIds);
 
   if (access.status === "unlinked" || access.status === "unavailable") {
-    return { decision: "preserve", add: [], remove: [], unknownSlugs: [] };
+    return { decision: "preserve", add: [], remove: [], unknownSlugs: [], conflicts: [] };
   }
 
   if (access.status === "inactive") {
@@ -74,6 +74,7 @@ function computeReconcile(access, currentRoleIds) {
       add: [],
       remove: managedRoleIds.filter((id) => current.has(id)),
       unknownSlugs: [],
+      conflicts: [],
     };
   }
 
@@ -99,18 +100,22 @@ function computeReconcile(access, currentRoleIds) {
       add: [],
       remove: managedRoleIds.filter((id) => current.has(id)),
       unknownSlugs: [],
+      conflicts: [],
     };
   }
   if (wanted.size === 0) {
     // Nothing resolvable (only unknown slugs) — preserve, don't strip.
-    return { decision: "preserve", add: [], remove: [], unknownSlugs };
+    return { decision: "preserve", add: [], remove: [], unknownSlugs, conflicts: [] };
   }
+
+  const { resolved, conflicts } = resolveRoleFamilyConflicts(wanted);
 
   return {
     decision: "reconcile",
-    add: [...wanted].filter((id) => !current.has(id)),
-    remove: managedRoleIds.filter((id) => current.has(id) && !wanted.has(id)),
+    add: [...resolved].filter((id) => !current.has(id)),
+    remove: managedRoleIds.filter((id) => current.has(id) && !resolved.has(id)),
     unknownSlugs,
+    conflicts,
   };
 }
 
@@ -136,6 +141,11 @@ async function reconcileMember(member, access) {
   const report = computeReconcile(access, [...member.roles.cache.keys()]);
   if (report.unknownSlugs.length > 0) {
     log(`roleSync unknown plan slug discordUserId=${member.id} slugs=${report.unknownSlugs.join(",")}`);
+  }
+  for (const conflict of report.conflicts) {
+    log(
+      `roleSync role family conflict discordUserId=${member.id} family=${conflict.family} kept=${conflict.kept} dropped=${conflict.dropped.join(",")}`
+    );
   }
   if (report.decision === "preserve") {
     return report;
