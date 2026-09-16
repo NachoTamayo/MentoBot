@@ -5,7 +5,7 @@ const path = require("path");
 const { guildId, token, dryRunRoleSync } = require("../config/config.json");
 const { createRoleHelpers } = require("./roleHelpers");
 const { getAccessBatch } = require("./v4Client");
-const { planRoleMap, managedRoleIds, resolveRoleFamilyConflicts } = require("./planRoleMap");
+const { planRoleMap, managedRoleIds, anunciosRoleId, resolveRoleFamilyConflicts } = require("./planRoleMap");
 
 const VALID_STATUSES = ["unlinked", "inactive", "active", "unavailable"];
 const MAX_CHECKED_AT_AGE_MS = 120000;
@@ -110,10 +110,15 @@ function computeReconcile(access, currentRoleIds) {
 
   const { resolved, conflicts } = resolveRoleFamilyConflicts(wanted);
 
+  const remove = managedRoleIds.filter((id) => current.has(id) && !resolved.has(id));
+  if (anunciosRoleId && current.has(anunciosRoleId)) {
+    remove.push(anunciosRoleId);
+  }
+
   return {
     decision: "reconcile",
     add: [...resolved].filter((id) => !current.has(id)),
-    remove: managedRoleIds.filter((id) => current.has(id) && !resolved.has(id)),
+    remove,
     unknownSlugs,
     conflicts,
   };

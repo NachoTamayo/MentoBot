@@ -15,7 +15,7 @@ const {
   botID,
 } = require("../config/config.json");
 
-const { planRoleMap, managedRoleIds, resolveRoleFamilyConflicts } = require("./planRoleMap");
+const { planRoleMap, managedRoleIds, anunciosRoleId, resolveRoleFamilyConflicts } = require("./planRoleMap");
 
 const fs = require("fs");
 const path = require("path");
@@ -327,6 +327,11 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
                 message.guild.channels.cache.get(soporteChannelID).toString()
             );
           } else {
+            if (anunciosRoleId && message.member.roles.cache.has(anunciosRoleId)) {
+              log(`!sub removing Anuncios role discordUserId=${message.author.id} (paid subscription active)`);
+              await removeRoleSafe(message.member, anunciosRoleId);
+            }
+
             const grantedNames = [];
             const failedRoleIds = [];
             for (const roleId of resolvedRoleIds) {

@@ -29,6 +29,10 @@ const planRoleMap = {
 // Only roles this map knows about are ever added/removed by !sub or roleSync.
 const managedRoleIds = Array.from(new Set(Object.values(planRoleMap).flat()));
 
+// A member can never hold the "Anuncios" role (granted when a subscription
+// expires) alongside a paid subscription role — they're mutually exclusive.
+const anunciosRoleId = roles.anuncios;
+
 // Roles grouped by game line, ordered lowest to highest tier. A member may
 // hold at most one role per family at a time — business rule: a student can
 // stack Cash + Spins + PLO etc., but never two tiers of the same line (e.g.
@@ -78,4 +82,4 @@ function resolveRoleFamilyConflicts(wantedRoleIds) {
   return { resolved, conflicts };
 }
 
-module.exports = { planRoleMap, managedRoleIds, roleFamilies, resolveRoleFamilyConflicts };
+module.exports = { planRoleMap, managedRoleIds, anunciosRoleId, roleFamilies, resolveRoleFamilyConflicts };

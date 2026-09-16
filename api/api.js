@@ -113,6 +113,11 @@ app.post("/api/subUpdated", async (req, res) => {
     }
 
     if (status === "active") {
+      if (roles.anuncios && member.roles.cache.has(roles.anuncios)) {
+        log(`Quitando rol de Anuncios a ${discord} (suscripción de pago activa). Número de pedido: ${jsonBody.order_id}`);
+        await member.roles.remove(roles.anuncios);
+      }
+
       const rolesToAdd = getDiscordRol(plan_id);
       console.log("Roles a añadir:", rolesToAdd);
       for (rol in rolesToAdd) {
@@ -139,7 +144,7 @@ app.post("/api/subUpdated", async (req, res) => {
       for (rol in rolesToDel) {
         console.log(`Removing role ${rolesToDel[rol]} from user ${discord}`);
         await member.roles.remove(rolesToDel[rol]);
-        await member.roles.add("1417758013225435176"); // rol de anuncios
+        await member.roles.add(roles.anuncios); // rol de anuncios
       }
       log(`Suscripción expirada para usuario ${user_id} (Discord: ${discord}). Número de pedido: ${jsonBody.order_id}`);
       // Opcionalmente, podrías eliminar roles o notificar al usuario
