@@ -14,14 +14,10 @@ const {
 const fs = require("fs");
 const path = require("path");
 
+// Sin intents privilegiados (GuildMembers / MessageContent): Discord los exige revisar al superar 10k usuarios.
+// Los miembros se buscan por REST (por ID o por nombre de usuario), que no necesita ninguno de los dos.
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.DirectMessages,
-    GatewayIntentBits.MessageContent, // Necesario para acceder al contenido de mensajes
-  ],
+  intents: [GatewayIntentBits.Guilds],
   partials: [Partials.Channel, Partials.Message, Partials.User], // Mejor manejo de DM y mensajes parciales
 });
 
@@ -40,6 +36,18 @@ function log(message) {
   fs.appendFile(logFilePath, `${timestamp} ${message}\n`, (err) => {
     if (err) console.error("Error al escribir en log:", err);
   });
+}
+
+// El campo "discord" de WordPress puede traer un ID numérico o un nombre de usuario.
+// Devuelve el GuildMember o null si no está en el servidor.
+async function findMember(guild, discord) {
+  if (!guild || !discord) return null;
+  const value = String(discord).trim();
+  if (/^\d{17,20}$/.test(value)) {
+    return guild.members.fetch(value).catch(() => null);
+  }
+  const results = await guild.members.search({ query: value, limit: 10 }).catch(() => null);
+  return results?.find((m) => m.user.username === value) ?? null;
 }
 
 function validateTimestamp(timestamp, res) {
@@ -100,9 +108,6 @@ app.post("/api/subUpdated", async (req, res) => {
     jsonBody = JSON.parse(bodyString);
     console.log("Received JSON body:", jsonBody);
     const discord = jsonBody.custom && jsonBody.custom.discord;
-    const server = client.guilds.cache.get(guildId);
-    const member = server.members.cache.find((m) => m.user.username === discord || m.user.id === discord);
-    console.log(member);
     const user_id = jsonBody.customer_id;
     const status = jsonBody.status;
     const plan_id = jsonBody.plan_id;
@@ -110,6 +115,13 @@ app.post("/api/subUpdated", async (req, res) => {
     if (!discord) {
       log(`No hay Discord ID para el usuario ${jsonBody.customer_id}. Número de pedido: ${jsonBody.order_id}`);
       return res.status(200).send("No Discord ID provided; skipping notification");
+    }
+
+    const server = client.guilds.cache.get(guildId);
+    const member = await findMember(server, discord);
+    if (!member) {
+      log(`No se encuentra en el servidor al usuario de Discord ${discord} (usuario ${user_id}). Número de pedido: ${jsonBody.order_id}`);
+      return res.status(200).send("Discord member not found; skipping");
     }
 
     if (status === "active") {
@@ -224,9 +236,8 @@ app.post("/api/rankUpdated", rawJsonRank, async (req, res) => {
         log(
           `[myCRED] PROMOTED user=${user?.id} ${user?.login} -> rank=${rank?.new_id} (${rank?.new_name}) from=${from}`,
         );
-        const promotedMember = server?.members.cache.find(
-          (m) => m.user.username === user?.login || m.user.id === user?.discord_id,
-        );
+        const promotedMember =
+          (await findMember(server, user?.discord_id)) ?? (await findMember(server, user?.login));
         if (promotedMember && rank?.new_id) {
           const roleToAdd = getRoleByRank(rank.new_id);
           if (roleToAdd) {
