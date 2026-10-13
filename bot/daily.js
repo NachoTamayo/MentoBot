@@ -1,14 +1,12 @@
 const { Client, GatewayIntentBits, Partials } = require("discord.js");
 const {
   clientId,
-  guildId,
   token,
   user,
   password,
   host,
   database,
   port,
-  adminRole,
   permisosChannelID,
   soporteChannelID,
   roles,
@@ -415,32 +413,6 @@ Puedes consultar la página https://mentopoker.com/deals/ y echar un vistazo sob
       );
     } else if (message.content.toLowerCase().startsWith("!email")) {
       emailFunction(message);
-    } else if (message.content.startsWith("!spam1111111")) {
-      let guild = client.guilds.cache.get(guildId);
-      guild.members.fetch(message.author.id).then((members) => {
-        if (members.roles.cache.some((role) => role.id === adminRole)) {
-          log("Admin mandando spam...");
-          const list = client.guilds.cache.get(guildId);
-
-          list.members.fetch({ cache: false }).then((members) => {
-            for (let [key, value] of members) {
-              if (members.get(key).user.id != botID) {
-                var mensaje =
-                  "¡Buenas, soy MentoBot! \r\n\r\nTe escribo para pedirte tu dirección de correo electrónico y añadirla a nuestra base de datos, para tenerla relacionada con tu usuario de Discord.\r\n";
-                mensaje +=
-                  "Para ello te voy a pedir que me lo escribas usando el comando !email, de la siguiente manera:\r\n\r\n\r\n";
-                mensaje += "!email [DIRECCION_DE_MAIL]\r\n\r\n\r\n";
-                mensaje +=
-                  "Tiene que ser con la que estás registrado en la web y asegúrate de que está correctamente escrito, si no te lo volveré a pedir.\r\n\r\n\r\n";
-                mensaje += "Gracias por tu colaboración. Beep. Boop. :robot:";
-                members.get(key).user.send(mensaje).catch(console.error);
-              }
-            }
-          });
-        } else {
-          return;
-        }
-      });
     } else if (message.content.startsWith("!")) {
       var msj =
         "No conozco ese comando, quizás aún no me lo han enseñado. Por el momento, los que me sé son estos:\r\n\r\n";
